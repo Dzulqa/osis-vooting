@@ -1,0 +1,307 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="osis-sequence" name="Sequence Diagram Pemilihan OSIS">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10"
+      guides="1" tooltips="1" connect="1" arrows="1" fold="1"
+      page="1" pageScale="1" pageWidth="1800" pageHeight="1400"
+      math="0" shadow="0">
+
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ========================= -->
+        <!-- PARTICIPANT HEADERS -->
+        <!-- ========================= -->
+
+        <mxCell id="siswa"
+          value="Siswa"
+          style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=middle;fillColor=#dae8fc;strokeColor=#6c8ebf;"
+          vertex="1" parent="1">
+          <mxGeometry x="80" y="40" width="140" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="petugasDaftar"
+          value="Petugas Pendaftaran"
+          style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;"
+          vertex="1" parent="1">
+          <mxGeometry x="360" y="40" width="180" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="sistem"
+          value="Sistem E-Voting"
+          style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;"
+          vertex="1" parent="1">
+          <mxGeometry x="680" y="40" width="180" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="petugasPanggil"
+          value="Petugas Pemanggil"
+          style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=middle;fillColor=#fff2cc;strokeColor=#d6b656;"
+          vertex="1" parent="1">
+          <mxGeometry x="1000" y="40" width="180" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="bilik"
+          value="Bilik Voting&#xa;(1, 2, 3)"
+          style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;"
+          vertex="1" parent="1">
+          <mxGeometry x="1320" y="40" width="180" height="50" as="geometry"/>
+        </mxCell>
+
+
+        <!-- ========================= -->
+        <!-- LIFELINES -->
+        <!-- ========================= -->
+
+        <mxCell id="lifeSiswa"
+          style="endArrow=none;html=1;dashed=1;strokeColor=#666666;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="150" y="90" as="sourcePoint"/>
+            <mxPoint x="150" y="1260" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="lifeDaftar"
+          style="endArrow=none;html=1;dashed=1;strokeColor=#666666;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="450" y="90" as="sourcePoint"/>
+            <mxPoint x="450" y="1260" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="lifeSistem"
+          style="endArrow=none;html=1;dashed=1;strokeColor=#666666;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="770" y="90" as="sourcePoint"/>
+            <mxPoint x="770" y="1260" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="lifePanggil"
+          style="endArrow=none;html=1;dashed=1;strokeColor=#666666;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1090" y="90" as="sourcePoint"/>
+            <mxPoint x="1090" y="1260" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="lifeBilik"
+          style="endArrow=none;html=1;dashed=1;strokeColor=#666666;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1410" y="90" as="sourcePoint"/>
+            <mxPoint x="1410" y="1260" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+
+        <!-- ========================= -->
+        <!-- SECTION 1 -->
+        <!-- PENDAFTARAN -->
+        <!-- ========================= -->
+
+        <mxCell id="section1"
+          value="1. PENDAFTARAN SISWA"
+          style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;align=left;spacingLeft=10;fillColor=#f5f5f5;strokeColor=#666666;"
+          vertex="1" parent="1">
+          <mxGeometry x="50" y="120" width="1480" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="m1"
+          value="Mendaftar"
+          style="endArrow=block;html=1;rounded=0;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="150" y="190" as="sourcePoint"/>
+            <mxPoint x="450" y="190" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m2"
+          value="Masukkan data siswa"
+          style="endArrow=block;html=1;rounded=0;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="450" y="250" as="sourcePoint"/>
+            <mxPoint x="770" y="250" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m3"
+          value="Validasi dan daftarkan siswa"
+          style="endArrow=block;html=1;rounded=0;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="770" y="310" as="sourcePoint"/>
+            <mxPoint x="850" y="310" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="850" y="340"/>
+              <mxPoint x="770" y="340"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m4"
+          value="Pendaftaran berhasil"
+          style="endArrow=open;html=1;rounded=0;dashed=1;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="770" y="390" as="sourcePoint"/>
+            <mxPoint x="450" y="390" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m5"
+          value="Silakan menunggu di antrean"
+          style="endArrow=open;html=1;rounded=0;dashed=1;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="450" y="450" as="sourcePoint"/>
+            <mxPoint x="150" y="450" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+
+        <!-- ========================= -->
+        <!-- SECTION 2 -->
+        <!-- ANTREAN -->
+        <!-- ========================= -->
+
+        <mxCell id="section2"
+          value="2. PEMANGGILAN DAN PENGECEKAN BILIK"
+          style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;align=left;spacingLeft=10;fillColor=#f5f5f5;strokeColor=#666666;"
+          vertex="1" parent="1">
+          <mxGeometry x="50" y="500" width="1480" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="m6"
+          value="Lihat antrean siswa"
+          style="endArrow=block;html=1;rounded=0;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1090" y="570" as="sourcePoint"/>
+            <mxPoint x="770" y="570" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m7"
+          value="Tampilkan siswa berikutnya"
+          style="endArrow=open;html=1;rounded=0;dashed=1;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="770" y="630" as="sourcePoint"/>
+            <mxPoint x="1090" y="630" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m8"
+          value="Cek bilik kosong"
+          style="endArrow=block;html=1;rounded=0;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1090" y="690" as="sourcePoint"/>
+            <mxPoint x="770" y="690" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m9"
+          value="Periksa status Bilik 1, 2, dan 3"
+          style="endArrow=block;html=1;rounded=0;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="770" y="750" as="sourcePoint"/>
+            <mxPoint x="1410" y="750" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m10"
+          value="Status bilik"
+          style="endArrow=open;html=1;rounded=0;dashed=1;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1410" y="810" as="sourcePoint"/>
+            <mxPoint x="770" y="810" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m11"
+          value="Informasi bilik yang kosong"
+          style="endArrow=open;html=1;rounded=0;dashed=1;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="770" y="870" as="sourcePoint"/>
+            <mxPoint x="1090" y="870" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+
+        <!-- ========================= -->
+        <!-- SECTION 3 -->
+        <!-- ALOKASI -->
+        <!-- ========================= -->
+
+        <mxCell id="section3"
+          value="3. PENEMPATAN SISWA KE BILIK"
+          style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;align=left;spacingLeft=10;fillColor=#f5f5f5;strokeColor=#666666;"
+          vertex="1" parent="1">
+          <mxGeometry x="50" y="920" width="1480" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="m12"
+          value="Daftarkan siswa ke bilik kosong"
+          style="endArrow=block;html=1;rounded=0;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1090" y="990" as="sourcePoint"/>
+            <mxPoint x="770" y="990" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m13"
+          value="Tetapkan siswa &amp; ubah status bilik menjadi TERISI"
+          style="endArrow=block;html=1;rounded=0;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="770" y="1050" as="sourcePoint"/>
+            <mxPoint x="1410" y="1050" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m14"
+          value="Alokasi berhasil"
+          style="endArrow=open;html=1;rounded=0;dashed=1;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="770" y="1110" as="sourcePoint"/>
+            <mxPoint x="1090" y="1110" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m15"
+          value="Panggil nama &amp; arahkan ke bilik yang ditentukan"
+          style="endArrow=block;html=1;rounded=0;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1090" y="1170" as="sourcePoint"/>
+            <mxPoint x="150" y="1170" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m16"
+          value="Menuju bilik"
+          style="endArrow=block;html=1;rounded=0;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="150" y="1230" as="sourcePoint"/>
+            <mxPoint x="1410" y="1230" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
