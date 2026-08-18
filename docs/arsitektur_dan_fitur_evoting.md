@@ -63,7 +63,17 @@ Sesuai kebutuhan, event E-Voting tidak boleh bisa diakses jika belum dibuka seca
 
 ---
 
-## 3. Kebutuhan Transisi Infrastruktur (Frontend ke Full-Stack)
+### 3. Konsep Isolasi Tahun Akademik (Core Architecture)
+
+Karena acara E-Voting akan diadakan rutin setiap tahun, maka seluruh sistem **wajib terikat (tied) dengan Tahun Akademik**. Ini berarti:
+
+1.  **Data Terpisah per Tahun:** Seluruh data Kandidat/Paslon, DPT (Daftar Pemilih Tetap), Daftar Panitia, hingga Hasil Suara akan dikelompokkan ke dalam "Tahun Akademik" (misal: 2026/2027). Data tahun sebelumnya tidak akan tercampur dengan data tahun sekarang.
+2.  **Akun Individu per Role:** Setiap individu panitia akan memiliki akunnya masing-masing (username & password sendiri) yang sifatnya spesifik (hanya berlaku) di tahun akademik tersebut. Jika tahun berganti, panitia dari tahun sebelumnya otomatis tidak punya akses penyelenggaraan untuk tahun ajaran baru kecuali di-assign ulang oleh Superadmin.
+3.  **Arsip Sejarah (History):** Superadmin bisa melihat kembali *history* (arsip rekam jejak) hasil pemilu dari tahun-tahun akademik sebelumnya sebagai bentuk dokumentasi.
+
+---
+
+## 4. Kebutuhan Transisi Infrastruktur (Frontend ke Full-Stack)
 
 Aplikasi yang ada saat ini (`fe-suara`) baru berupa fondasi antarmuka (Front-End) yang menggunakan `localStorage` sebagai tempat menyimpan data sementara. 
 
@@ -71,6 +81,6 @@ Agar fitur Role, Countdown, dan Sinkronisasi Data (seperti dari Meja Pendaftaran
 
 ### Keuntungan menggunakan Backend (Database Asli):
 1.  **Multi-Device Sinkron (Real-time):** Registrator pakai HP, Caller pakai Laptop, dan Bilik pakai Tablet/iPad bisa saling terhubung via jaringan WiFi/Internet tanpa *delay*.
-2.  **Sistem Keamanan Login:** Halaman Superadmin, Ketua OSIS, Caller, dan Live Count akan dilindungi oleh sistem Login (Username & Password), sehingga siswa biasa tidak bisa mengaksesnya sembarangan.
+2.  **Sistem Keamanan Login:** Halaman Superadmin, Ketua OSIS, Caller, dan Live Count akan dilindungi oleh sistem Login (Username & Password) individu yang terikat dengan Tahun Akademik, sehingga siswa biasa tidak bisa mengaksesnya sembarangan.
 3.  **Integritas Data:** Data hasil voting akan masuk ke database server yang aman dan tersimpan permanen (tidak hilang saat browser ditutup / ter-clear cache).
 4.  **Dinamis:** Data Paslon, DPT, dan Jadwal Event tidak perlu di-*hardcode* lagi ke dalam *source code*, melainkan bisa diganti kapan saja oleh Superadmin lewat Dashboard.
