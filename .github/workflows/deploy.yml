@@ -1,0 +1,56 @@
+name: Deploy fe-suara to VPS
+
+on:
+  push:
+    branches:
+      - main # Change this to your default branch if different
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Assuming Node 20, adjust if needed
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Archive build files
+        run: tar -czvf deploy.tar.gz .next public package.json package-lock.json ecosystem.config.js
+
+      - name: Copy files to VPS via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "deploy.tar.gz"
+          target: "/home/deploy/apps/suara"
+          overwrite: true
+
+      - name: Extract files, Install Prod Dependencies and Restart PM2 on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            mkdir -p /home/deploy/apps/suara
+            cd /home/deploy/apps/suara
+            tar -xzvf deploy.tar.gz
+            npm ci --omit=dev
+            pm2 reload ecosystem.config.js || pm2 start ecosystem.config.js
+            pm2 save
+            rm deploy.tar.gz
