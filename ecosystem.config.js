@@ -4,7 +4,7 @@ module.exports = {
       name: 'suara',
       script: 'node_modules/next/dist/bin/next',
       args: 'start',
-      cwd: '/home/deploy/app/fe-suara',
+      cwd: '/home/deploy/apps/fe-suara',
       instances: 'max',
       exec_mode: 'cluster',
       env: {
