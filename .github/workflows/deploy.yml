@@ -36,7 +36,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
           source: "deploy.tar.gz"
-          target: "/home/deploy/apps/suara"
+          target: "/home/deploy/app/fe-suara"
           overwrite: true
 
       - name: Extract files, Install Prod Dependencies and Restart PM2 on VPS
@@ -47,8 +47,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
           script: |
-            mkdir -p /home/deploy/apps/suara
-            cd /home/deploy/apps/suara
+            mkdir -p /home/deploy/app/fe-suara
+            cd /home/deploy/app/fe-suara
             tar -xzvf deploy.tar.gz
             npm ci --omit=dev
             pm2 reload ecosystem.config.js || pm2 start ecosystem.config.js
