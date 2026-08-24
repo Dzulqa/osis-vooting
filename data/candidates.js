@@ -45,7 +45,7 @@ const candidates = [
     id: 3,
     nomor: "03",
     ketua: "Farel Maulana",
-    wakil: "Aisyah Ramadhani",
+    wakil: "Syakila Kinan",
     slogan: "Bergerak bersama, OSIS luar biasa.",
     foto: "/candidates/paslon-03.png",
     visi: "Mewujudkan OSIS yang aktif, kreatif, dan menjadi ruang aspirasi seluruh siswa.",

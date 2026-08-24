@@ -8,18 +8,20 @@ import CandidateDetail from "@/components/CandidateDetail";
 import VoteModal from "@/components/VoteModal";
 import VoteSuccess from "@/components/VoteSuccess";
 
-import candidates from "@/data/candidates";
-
 import {
   getBooths,
   resetBooth,
   saveVote,
   activateBooth,
+  getEventConfig,
+  getCandidatesList,
   subscribeVotingStorage,
 } from "@/lib/votingStorage";
 
 export default function VotingBooth({ boothId }) {
   const [currentBooth, setCurrentBooth] = useState(null);
+  const [eventConfig, setEventConfig] = useState({ status: "open" });
+  const [candidates, setCandidates] = useState([]);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [voteCandidate, setVoteCandidate] = useState(null);
   const [voteStatus, setVoteStatus] = useState("idle");
@@ -31,15 +33,23 @@ export default function VotingBooth({ boothId }) {
 
   function loadBooth() {
     const booths = getBooths();
+    setEventConfig(getEventConfig());
+    setCandidates(getCandidatesList());
+
     const booth = booths.find(
       (item) => item.id === Number(boothId)
     );
+
     setCurrentBooth(booth || null);
   }
 
+
+
   useEffect(() => {
     loadBooth();
+
     const unsubscribe = subscribeVotingStorage(loadBooth);
+
     return unsubscribe;
   }, [boothId]);
 
@@ -54,6 +64,7 @@ export default function VotingBooth({ boothId }) {
 
   function closeDetail() {
     setIsClosing(true);
+
     setTimeout(() => {
       setSelectedCandidate(null);
       setIsClosing(false);
@@ -61,11 +72,12 @@ export default function VotingBooth({ boothId }) {
   }
 
   // ========================================
-  // BUKA SESI (DILAKUKAN SISWA)
+  // BUKA SESI
   // ========================================
 
   function handleOpenSession() {
     if (!currentBooth?.student) return;
+
     activateBooth(boothId);
   }
 
@@ -111,19 +123,16 @@ export default function VotingBooth({ boothId }) {
   }
 
   // ========================================
-  // HEADER HALAMAN SISWA
-  // ========================================
-
-  // ========================================
-  // BRAND & BILIK BADGE COMPONENTS
+  // BILIK BADGE
   // ========================================
 
   function BilikBadge() {
     return (
-      <div className="absolute top-5 right-6 z-10">
-        <div className="flex items-center gap-2 rounded-xl border border-violet-200/80 bg-white/80 backdrop-blur-xs px-3.5 py-1.5 shadow-xs">
-          <span className="h-2 w-2 rounded-full bg-violet-600 animate-pulse" />
-          <span className="text-xs font-bold text-violet-700">
+      <div className="absolute right-6 top-5 z-10">
+        <div className="flex items-center gap-2 rounded-xl border border-violet-200/80 bg-white/80 px-3.5 py-1.5 shadow-sm backdrop-blur-sm">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-green-600" />
+
+          <span className="text-xs font-bold text-green-600">
             Bilik {String(boothId).padStart(2, "0")}
           </span>
         </div>
@@ -131,9 +140,13 @@ export default function VotingBooth({ boothId }) {
     );
   }
 
+  // ========================================
+  // BRAND PILL
+  // ========================================
+
   function BrandPill() {
     return (
-      <div className="inline-flex items-center gap-3 rounded-2xl bg-white/80 px-4 py-2 border border-violet-100/80 shadow-xs mb-3">
+      <div className="mb-6 inline-flex items-center gap-3 rounded-2xl border border-violet-100/80 bg-white/80 px-4 py-2 shadow-sm">
         {/* LOGO SEKOLAH */}
         <div className="flex h-8 w-8 items-center justify-center">
           <img
@@ -155,11 +168,12 @@ export default function VotingBooth({ boothId }) {
         {/* PEMISAH */}
         <div className="h-5 w-px bg-slate-200" />
 
-        {/* TEXT APLIKASI */}
+        {/* TEXT */}
         <div className="text-left">
           <h2 className="text-xs font-bold leading-none text-slate-800">
             E-Voting OSIS
           </h2>
+
           <p className="mt-0.5 text-[10px] font-semibold text-slate-500">
             SMK Al Amanah
           </p>
@@ -169,12 +183,51 @@ export default function VotingBooth({ boothId }) {
   }
 
   // ========================================
-  // BILIK WAITING (MENUNGGU PEMILIH)
+  // EVENT DITUTUP
+  // ========================================
+
+  if (eventConfig.status === "closed") {
+    return (
+      <main className="relative flex h-[calc(100vh-45px)] flex-col overflow-hidden bg-[#F8F7FF]">
+        <BilikBadge />
+
+        <div className="flex flex-1 items-center justify-center p-6">
+          <div className="flex w-full max-w-md flex-col items-center rounded-3xl border border-rose-100 bg-white p-8 text-center shadow-lg">
+            <BrandPill />
+
+            <div className="mt-2 flex h-20 w-20 items-center justify-center rounded-full bg-rose-100 text-4xl shadow-inner">
+              🔒
+            </div>
+
+            <h1 className="mt-6 text-2xl font-extrabold text-slate-900">
+              Event E-Voting Ditutup
+            </h1>
+
+            <p className="mt-2 text-xs leading-relaxed text-slate-500">
+              Penyelenggara (Ketua OSIS Saat Ini) sedang menutup sesi operasional e-voting. Bilik suara belum dapat digunakan saat ini.
+            </p>
+
+            <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-2">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-rose-500" />
+
+              <span className="text-xs font-bold text-rose-700">
+                Sesi Ditutup oleh Penyelenggara
+              </span>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+
+  // ========================================
+  // WAITING
   // ========================================
 
   if (currentBooth.status === "waiting") {
     return (
-      <main className="relative flex h-screen flex-col overflow-hidden bg-[#F8F7FF]">
+      <main className="relative flex h-[calc(100vh-45px)] flex-col overflow-hidden bg-[#F8F7FF]">
         <BilikBadge />
 
         <div className="flex flex-1 items-center justify-center p-6">
@@ -195,6 +248,7 @@ export default function VotingBooth({ boothId }) {
 
             <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-violet-50 px-4 py-2">
               <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-violet-500" />
+
               <span className="text-xs font-bold text-violet-700">
                 Menunggu Pemilih
               </span>
@@ -205,72 +259,70 @@ export default function VotingBooth({ boothId }) {
     );
   }
 
+
   // ========================================
-  // ASSIGNED (SAMBUTAN SISWA & BUKA SESI)
+  // ASSIGNED
   // ========================================
 
   if (currentBooth.status === "assigned") {
     return (
-      <main className="relative flex h-screen flex-col overflow-hidden bg-[#F8F7FF]">
+      <main className="relative flex h-[calc(100vh-45px)] flex-col overflow-hidden bg-[#F8F7FF]">
         <BilikBadge />
 
-        <div className="flex flex-1 items-center justify-center p-6">
-          <div className="flex w-full max-w-xl flex-col items-center rounded-3xl border border-violet-100 bg-white p-8 text-center shadow-xl">
+        <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
+          <div className="flex w-full max-w-lg flex-col items-center rounded-3xl border border-violet-100 bg-white p-6 sm:p-7 text-center shadow-xl">
             <BrandPill />
 
-            {/* ICON */}
-            <div className="mt-2 flex h-20 w-20 items-center justify-center rounded-full bg-violet-100 text-4xl shadow-inner">
+            <div className="mt-2 flex h-16 w-16 items-center justify-center rounded-full bg-violet-100 text-3xl shadow-inner">
               👋
             </div>
 
-            {/* JUDUL */}
-            <h1 className="mt-5 text-2xl font-extrabold leading-tight text-slate-900 sm:text-3xl">
+            <h1 className="mt-4 text-xl font-extrabold leading-tight text-slate-900 sm:text-2xl">
               Selamat Datang di Pemilihan
             </h1>
 
-            <p className="mt-1 text-lg font-bold text-violet-600">
+            <p className="mt-0.5 text-base font-bold text-violet-600 sm:text-lg">
               Calon Ketua & Wakil Ketua OSIS
             </p>
 
-            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-500">
-              Pastikan identitas di bawah ini sesuai dengan data Anda sebelum menekan tombol buka sesi.
+            <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-slate-500 sm:text-sm">
+              Pastikan identitas di bawah ini sesuai dengan data Anda sebelum
+              menekan tombol buka sesi.
             </p>
 
-            {/* DATA SISWA */}
-            <div className="mt-6 w-full max-w-md rounded-2xl border border-violet-100 bg-violet-50/50 p-5 text-center">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-violet-500">
+            <div className="mt-5 w-full rounded-2xl border border-violet-100 bg-violet-50/50 p-4 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-violet-500">
                 Identitas Pemilih
               </p>
 
-              <h2 className="mt-1 text-2xl font-bold text-slate-900">
+              <h2 className="mt-0.5 text-xl font-bold text-slate-900">
                 {currentBooth.student?.nama}
               </h2>
 
-              <p className="mt-1 text-sm font-medium text-slate-600">
+              <p className="mt-0.5 text-xs font-medium text-slate-600 sm:text-sm">
                 NIS {currentBooth.student?.nis}
                 {" • "}
                 {currentBooth.student?.kelas}
               </p>
             </div>
 
-            {/* STATUS BADGE */}
-            <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-amber-50 px-4 py-2">
-              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-amber-500" />
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3.5 py-1.5">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
+
               <span className="text-xs font-bold text-amber-700">
                 Sesi Belum Dimulai
               </span>
             </div>
 
-            {/* BUTTON BUKA SESI */}
             <button
               type="button"
               onClick={handleOpenSession}
-              className="mt-6 w-full cursor-pointer rounded-2xl bg-violet-600 px-6 py-4 text-base font-extrabold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-700 active:scale-[0.98]"
+              className="mt-5 w-full cursor-pointer rounded-2xl bg-violet-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-700 active:scale-[0.98] sm:text-base"
             >
               Mulai Memilih
             </button>
 
-            <p className="mt-2.5 text-xs text-slate-400">
+            <p className="mt-2 text-[11px] text-slate-400">
               Tekan tombol di atas untuk membuka kartu paslon dan memilih.
             </p>
           </div>
@@ -279,35 +331,41 @@ export default function VotingBooth({ boothId }) {
     );
   }
 
+
   // ========================================
-  // ACTIVE (HALAMAN PEMILIHAN PASLON)
+  // ACTIVE
   // ========================================
 
   return (
-    <main className="relative flex h-screen flex-col overflow-hidden bg-[#F8F7FF]">
-      {/* BADGE BILIK POJOK KANAN ATAS */}
+    <main className="relative flex h-[calc(100vh-45px)] flex-col overflow-hidden bg-[#F8F7FF]">
       <BilikBadge />
 
-      {/* KONTEN HEADER (LOGOS, APPS NAME, JUDUL) */}
-      <section className="flex shrink-0 flex-col items-center px-6 pt-6 pb-2 text-center">
+      {/* HEADER */}
+      <section className="flex shrink-0 flex-col items-center px-6 pt-5 pb-1 text-center">
         <BrandPill />
 
         <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
-          Pilih Pasangan <span className="text-violet-600">Terbaikmu</span>
+          Pilih Pasangan{" "}
+          <span className="text-violet-600">
+            Terbaikmu
+          </span>
         </h1>
 
-        <p className="mt-1.5 text-xs font-medium text-slate-500 sm:text-sm">
+        <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
           Pemilihan Ketua & Wakil Ketua OSIS SMK Al Amanah
         </p>
       </section>
 
-      {/* AREA UTAMA DENGAN SLIDING ANIMASI PASLON */}
-      <section className="relative mx-auto flex min-h-0 w-full max-w-[980px] flex-1 items-center justify-center overflow-hidden px-4 pb-6 pt-3">
+      {/* AREA CARD */}
+      <section className="relative mx-auto flex min-h-0 w-full max-w-[950px] flex-1 items-center justify-center overflow-hidden px-3 pb-2 pt-0">
         {candidates.map((candidate, index) => {
-          const isSelected = selectedCandidate?.id === candidate.id;
-          const hasSelected = selectedCandidate !== null;
+          const isSelected =
+            selectedCandidate?.id === candidate.id;
 
-          let leftPosition = `${index * 35.5}%`;
+          const hasSelected =
+            selectedCandidate !== null;
+
+          let leftPosition = `${index * 32.5 + 3}%`;
           let opacity = "opacity-100";
           let scale = "scale-100";
           let pointerEvents = "";
@@ -326,7 +384,10 @@ export default function VotingBooth({ boothId }) {
             <div
               key={candidate.id}
               className={`
-                absolute top-0 bottom-0 my-auto h-full max-h-[440px] sm:max-h-[460px] lg:max-h-[475px] w-[29%] max-w-[300px]
+                absolute top-0 bottom-0 my-auto
+                h-[390px] sm:h-[400px] lg:h-[410px]
+                w-[27%] max-w-[265px]
+                -translate-y-5
                 transition-all duration-[600ms] ease-in-out
                 ${opacity}
                 ${scale}
@@ -352,21 +413,21 @@ export default function VotingBooth({ boothId }) {
           );
         })}
 
-        {/* PANEL DETAIL SLIDING */}
+        {/* DETAIL */}
         {selectedCandidate && (
-          <div
-            className={`
-              absolute left-[32.5%] top-0 bottom-0 my-auto h-full max-h-[440px] sm:max-h-[460px] lg:max-h-[475px] w-[67.5%] pl-2
-              ${isClosing
-                ? "candidate-detail-exit"
-                : "candidate-detail-enter"
-              }
-            `}
-          >
-            <CandidateDetail
-              candidate={selectedCandidate}
-              onClose={closeDetail}
-            />
+          <div className="absolute top-0 bottom-0 my-auto left-[32.5%] h-[390px] sm:h-[400px] lg:h-[410px] w-[67.5%] -translate-y-5 pl-2">
+            <div
+              className={`h-full w-full ${
+                isClosing
+                  ? "candidate-detail-exit"
+                  : "candidate-detail-enter"
+              }`}
+            >
+              <CandidateDetail
+                candidate={selectedCandidate}
+                onClose={closeDetail}
+              />
+            </div>
           </div>
         )}
       </section>
@@ -385,8 +446,9 @@ export default function VotingBooth({ boothId }) {
         />
       )}
 
-      {/* VOTE SUCCESS ANIMATION */}
+      {/* SUCCESS */}
       {voteStatus === "success" && <VoteSuccess />}
     </main>
   );
+
 }

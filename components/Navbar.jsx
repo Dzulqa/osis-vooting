@@ -51,6 +51,19 @@ export default function Navbar({ boothId }) {
 
           <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold mr-2">
             <Link
+              href="/superadmin"
+              className="rounded-xl bg-violet-600 px-3 py-2 font-bold text-white transition hover:bg-violet-700 shadow-sm"
+            >
+              🌟 Superadmin
+            </Link>
+            <Link
+              href="/ketua"
+              className="rounded-xl bg-amber-50 px-3 py-2 font-bold text-amber-800 transition hover:bg-amber-100"
+            >
+              👑 Ketua OSIS
+            </Link>
+
+            <Link
               href="/registration"
               className="rounded-xl px-3 py-2 text-slate-600 transition hover:bg-violet-50 hover:text-violet-600"
             >
@@ -69,6 +82,7 @@ export default function Navbar({ boothId }) {
               Database Paslon
             </Link>
           </div>
+
 
           {boothId ? (
             <>

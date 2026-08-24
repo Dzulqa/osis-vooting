@@ -6,12 +6,14 @@ import {
   getQueue,
   assignStudentToBooth,
   activateBooth,
+  getEventConfig,
   subscribeVotingStorage,
 } from "@/lib/votingStorage";
 
 export default function CallerPage() {
   const [queue, setQueue] = useState([]);
   const [booths, setBooths] = useState([]);
+  const [eventConfig, setEventConfig] = useState({ status: "open" });
 
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedBooth, setSelectedBooth] = useState(null);
@@ -19,7 +21,9 @@ export default function CallerPage() {
   function loadData() {
     setQueue(getQueue());
     setBooths(getBooths());
+    setEventConfig(getEventConfig());
   }
+
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -75,8 +79,21 @@ export default function CallerPage() {
     <main className="min-h-screen bg-[#F8F7FF] px-8 py-10">
       <div className="mx-auto max-w-7xl">
 
+        {eventConfig.status === "closed" && (
+          <div className="mb-6 flex items-center justify-between rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🔒</span>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider">Event E-Voting Ditutup</p>
+                <p className="text-xs text-rose-700 mt-0.5">Operasional pemanggilan saat ini dinonaktifkan oleh Penyelenggara (Ketua OSIS Saat Ini).</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* HEADER */}
         <div className="mb-8">
+
           <p className="text-sm font-bold text-violet-600">
             E-Voting OSIS
           </p>

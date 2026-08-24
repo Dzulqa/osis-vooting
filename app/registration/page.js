@@ -1,33 +1,41 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import students from "@/data/students";
 
 import {
   addToQueue,
   getQueue,
   getBooths,
   getVotedStudents,
+  getEventConfig,
+  getStudentsList,
   subscribeVotingStorage,
 } from "@/lib/votingStorage";
+
 
 export default function RegistrationPage() {
   const [selectedClass, setSelectedClass] = useState("");
   const [search, setSearch] = useState("");
 
-const [queue, setQueue] = useState([]);
-const [booths, setBooths] = useState([]);
-const [votedStudents, setVotedStudents] = useState([]);
+  const [queue, setQueue] = useState([]);
+  const [booths, setBooths] = useState([]);
+  const [votedStudents, setVotedStudents] = useState([]);
+  const [eventConfig, setEventConfig] = useState({ status: "open" });
+  const [students, setStudents] = useState([]);
 
   // =========================================
   // LOAD DATA DARI VOTING STORAGE
   // =========================================
 
-function loadData() {
-  setQueue(getQueue());
-  setBooths(getBooths());
-  setVotedStudents(getVotedStudents());
-}
+  function loadData() {
+    setQueue(getQueue());
+    setBooths(getBooths());
+    setVotedStudents(getVotedStudents());
+    setEventConfig(getEventConfig());
+    setStudents(getStudentsList());
+  }
+
+
 
   useEffect(() => {
     loadData();
@@ -113,8 +121,21 @@ function isRegistered(studentId) {
     <main className="min-h-screen bg-[#F8F7FF] px-6 py-10 lg:px-10">
       <div className="mx-auto max-w-7xl">
 
+        {eventConfig.status === "closed" && (
+          <div className="mb-6 flex items-center justify-between rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🔒</span>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider">Event E-Voting Ditutup</p>
+                <p className="text-xs text-rose-700 mt-0.5">Operasional pendaftaran saat ini dinonaktifkan oleh Penyelenggara (Ketua OSIS Saat Ini).</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* HEADER */}
         <div className="mb-8">
+
           <p className="font-semibold text-violet-600">
             E-Voting OSIS
           </p>
