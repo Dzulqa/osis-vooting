@@ -3,6 +3,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
+import AuthGuard from "@/components/AuthGuard";
 import {
   getBooths,
   getQueue,
@@ -16,7 +18,8 @@ import {
   subscribeVotingStorage,
 } from "@/lib/votingStorage";
 
-export default function KetuaOsisDashboard() {
+function KetuaOsisDashboardContent() {
+
   const [eventConfig, setEventConfig] = useState({
     status: "open",
     startTime: "",
@@ -113,64 +116,10 @@ export default function KetuaOsisDashboard() {
   return (
     <main className="min-h-screen bg-[#F8F7FF] pb-16">
       {/* NAVBAR */}
-      <nav className="w-full border-b border-violet-100 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center">
-                <img
-                  src="/logo/alamanah.png"
-                  alt="Logo Sekolah"
-                  className="h-11 w-11 object-contain"
-                />
-              </div>
-              <div className="mt-2 flex h-12 w-12 items-center justify-center overflow-hidden">
-                <img
-                  src="/logo/osis.png"
-                  alt="Logo OSIS"
-                  className="h-20 w-20 max-w-none object-contain"
-                />
-              </div>
-            </div>
-            <div className="h-10 w-px bg-slate-200" />
-            <div>
-              <h1 className="text-lg font-bold text-slate-900">
-                E-Voting OSIS
-              </h1>
-              <p className="text-xs text-slate-500">SMK Al Amanah</p>
-            </div>
-          </div>
-
-          <div className="hidden sm:flex items-center gap-2 text-sm font-medium">
-            <Link
-              href="/ketua"
-              className="rounded-xl bg-amber-100 px-4 py-2 font-bold text-amber-900"
-            >
-              👑 Panel Ketua OSIS
-            </Link>
-            <Link
-              href="/registration"
-              className="rounded-xl px-3 py-2 text-slate-600 transition hover:bg-violet-50 hover:text-violet-600"
-            >
-              Meja Pendaftaran
-            </Link>
-            <Link
-              href="/caller"
-              className="rounded-xl px-3 py-2 text-slate-600 transition hover:bg-violet-50 hover:text-violet-600"
-            >
-              Meja Pemanggil
-            </Link>
-            <Link
-              href="/results"
-              className="rounded-xl px-3 py-2 text-slate-600 transition hover:bg-violet-50 hover:text-violet-600"
-            >
-              Database Suara
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* NOTIFIKASI BANNER */}
+
       {notification && (
         <div className="mx-auto max-w-7xl px-6 pt-6 lg:px-10">
           <div
@@ -586,3 +535,12 @@ export default function KetuaOsisDashboard() {
     </main>
   );
 }
+
+export default function KetuaOsisDashboard() {
+  return (
+    <AuthGuard allowedRoles={["superadmin", "ketua"]}>
+      <KetuaOsisDashboardContent />
+    </AuthGuard>
+  );
+}
+

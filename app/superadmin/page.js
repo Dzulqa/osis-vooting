@@ -3,6 +3,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
+import AuthGuard from "@/components/AuthGuard";
 import {
   getAcademicYear,
   saveAcademicYear,
@@ -21,9 +23,12 @@ import {
   importDptFromData,
   resetVotingSimulation,
   subscribeVotingStorage,
+  getAuthCreds,
+  saveAuthCreds,
 } from "@/lib/votingStorage";
 
-export default function SuperadminPage() {
+
+function SuperadminPageContent() {
   const [activeTab, setActiveTab] = useState("overview");
 
   // State master data
@@ -68,6 +73,16 @@ export default function SuperadminPage() {
   const [importJsonText, setImportJsonText] = useState("");
   const [notification, setNotification] = useState(null);
 
+  // Creds forms
+  const [superadminCredsForm, setSuperadminCredsForm] = useState({
+    username: "",
+    password: "",
+  });
+  const [ketuaCredsForm, setKetuaCredsForm] = useState({
+    username: "",
+    password: "",
+  });
+
   function loadAllData() {
     const year = getAcademicYear();
     setAcademicYearState(year);
@@ -81,7 +96,18 @@ export default function SuperadminPage() {
     setBooths(getBooths());
     setCandidates(getCandidatesList());
     setStudents(getStudentsList());
+
+    const creds = getAuthCreds();
+    setSuperadminCredsForm({
+      username: creds.superadmin.username,
+      password: creds.superadmin.password,
+    });
+    setKetuaCredsForm({
+      username: creds.ketua.username,
+      password: creds.ketua.password,
+    });
   }
+
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -104,6 +130,32 @@ export default function SuperadminPage() {
     saveAcademicYear(newYearInput.trim());
     showBanner("✅ Tahun Ajaran berhasil diperbarui!");
   }
+
+  // 1b. Manajemen Creds Auth
+  function handleSaveSuperadminCreds(e) {
+    e.preventDefault();
+    if (!superadminCredsForm.username.trim() || !superadminCredsForm.password.trim()) return;
+    saveAuthCreds({
+      superadmin: {
+        username: superadminCredsForm.username.trim(),
+        password: superadminCredsForm.password.trim(),
+      },
+    });
+    showBanner("✅ Password & Username Superadmin berhasil diperbarui!");
+  }
+
+  function handleSaveKetuaCreds(e) {
+    e.preventDefault();
+    if (!ketuaCredsForm.username.trim() || !ketuaCredsForm.password.trim()) return;
+    saveAuthCreds({
+      ketua: {
+        username: ketuaCredsForm.username.trim(),
+        password: ketuaCredsForm.password.trim(),
+      },
+    });
+    showBanner("👑 Password & Username Ketua OSIS berhasil diperbarui!");
+  }
+
 
   // 2. Ketua OSIS
   function handleSaveKetua(e) {
@@ -224,68 +276,7 @@ export default function SuperadminPage() {
   return (
     <main className="min-h-screen bg-[#F8F7FF] pb-16">
       {/* NAVBAR */}
-      <nav className="w-full border-b border-violet-100 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center">
-                <img
-                  src="/logo/alamanah.png"
-                  alt="Logo Sekolah"
-                  className="h-11 w-11 object-contain"
-                />
-              </div>
-              <div className="mt-2 flex h-12 w-12 items-center justify-center overflow-hidden">
-                <img
-                  src="/logo/osis.png"
-                  alt="Logo OSIS"
-                  className="h-20 w-20 max-w-none object-contain"
-                />
-              </div>
-            </div>
-            <div className="h-10 w-px bg-slate-200" />
-            <div>
-              <h1 className="text-lg font-bold text-slate-900">
-                E-Voting OSIS
-              </h1>
-              <p className="text-xs text-slate-500">SMK Al Amanah</p>
-            </div>
-          </div>
-
-          <div className="hidden sm:flex items-center gap-2 text-sm font-medium">
-            <Link
-              href="/superadmin"
-              className="rounded-xl bg-violet-600 px-4 py-2 font-bold text-white shadow-sm"
-            >
-              🌟 Superadmin
-            </Link>
-            <Link
-              href="/ketua"
-              className="rounded-xl bg-amber-50 px-3 py-2 font-bold text-amber-800 transition hover:bg-amber-100"
-            >
-              👑 Ketua OSIS
-            </Link>
-            <Link
-              href="/registration"
-              className="rounded-xl px-3 py-2 text-slate-600 transition hover:bg-violet-50 hover:text-violet-600"
-            >
-              Meja Pendaftaran
-            </Link>
-            <Link
-              href="/caller"
-              className="rounded-xl px-3 py-2 text-slate-600 transition hover:bg-violet-50 hover:text-violet-600"
-            >
-              Meja Pemanggil
-            </Link>
-            <Link
-              href="/results"
-              className="rounded-xl px-3 py-2 text-slate-600 transition hover:bg-violet-50 hover:text-violet-600"
-            >
-              Database Suara
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* NOTIFIKASI BANNER */}
       {notification && (
@@ -342,6 +333,7 @@ export default function SuperadminPage() {
         <div className="mb-8 flex flex-wrap gap-2.5 border-b border-slate-200 pb-4">
           {[
             { id: "overview", label: "📊 Ringkasan & Tahun Ajaran" },
+            { id: "auth", label: "🔑 Hak Akses & Password" },
             { id: "ketua", label: "👑 Identitas Ketua OSIS" },
             { id: "panitia", label: "👥 Manajemen Panitia" },
             { id: "bilik", label: "🗳️ Bilik Suara Dinamis" },
@@ -361,6 +353,7 @@ export default function SuperadminPage() {
             </button>
           ))}
         </div>
+
 
         {/* TAB CONTENTS */}
 
@@ -422,6 +415,118 @@ export default function SuperadminPage() {
             </div>
           </div>
         )}
+
+        {/* ======================================== */}
+        {/* TAB AUTH: HAK AKSES & PASSWORD           */}
+        {/* ======================================== */}
+        {activeTab === "auth" && (
+          <div className="grid gap-8 lg:grid-cols-2">
+            {/* SUPERADMIN CREDS FORM */}
+            <div className="rounded-3xl border border-violet-200 bg-white p-6 sm:p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-700 text-lg font-bold">
+                  🌟
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    Kredensial Login Superadmin
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Akun Pembina OSIS & Tim IT dengan Hak Akses Tertinggi
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveSuperadminCreds} className="mt-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Username Superadmin
+                  </label>
+                  <input
+                    type="text"
+                    value={superadminCredsForm.username}
+                    onChange={(e) => setSuperadminCredsForm({ ...superadminCredsForm, username: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-violet-500 font-mono"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Password Superadmin Baru
+                  </label>
+                  <input
+                    type="text"
+                    value={superadminCredsForm.password}
+                    onChange={(e) => setSuperadminCredsForm({ ...superadminCredsForm, password: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-violet-500 font-mono"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full cursor-pointer rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-violet-700 shadow-sm"
+                >
+                  💾 Simpan Kredensial Superadmin
+                </button>
+              </form>
+            </div>
+
+            {/* KETUA OSIS CREDS FORM */}
+            <div className="rounded-3xl border border-amber-200 bg-white p-6 sm:p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-800 text-lg font-bold">
+                  👑
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    Kredensial Login Ketua OSIS
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Akun Penanggung Jawab Penyelenggara Pemilu
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveKetuaCreds} className="mt-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Username Ketua OSIS
+                  </label>
+                  <input
+                    type="text"
+                    value={ketuaCredsForm.username}
+                    onChange={(e) => setKetuaCredsForm({ ...ketuaCredsForm, username: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-amber-500 font-mono"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Password Ketua OSIS Baru
+                  </label>
+                  <input
+                    type="text"
+                    value={ketuaCredsForm.password}
+                    onChange={(e) => setKetuaCredsForm({ ...ketuaCredsForm, password: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-amber-500 font-mono"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full cursor-pointer rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-amber-700 shadow-sm"
+                >
+                  💾 Simpan Kredensial Ketua OSIS
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
 
         {/* ======================================== */}
         {/* TAB 2: IDENTITAS KETUA OSIS              */}
@@ -901,3 +1006,12 @@ export default function SuperadminPage() {
     </main>
   );
 }
+
+export default function SuperadminPage() {
+  return (
+    <AuthGuard allowedRoles={["superadmin"]}>
+      <SuperadminPageContent />
+    </AuthGuard>
+  );
+}
+

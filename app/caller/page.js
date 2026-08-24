@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Navbar from "@/components/Navbar";
 import {
+
   getBooths,
   getQueue,
   assignStudentToBooth,
@@ -76,8 +78,11 @@ export default function CallerPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F8F7FF] px-8 py-10">
-      <div className="mx-auto max-w-7xl">
+    <main className="min-h-screen bg-[#F8F7FF] pb-10">
+      <Navbar />
+
+      <div className="mx-auto max-w-7xl px-6 pt-8 lg:px-10">
+
 
         {eventConfig.status === "closed" && (
           <div className="mb-6 flex items-center justify-between rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
