@@ -61,7 +61,7 @@ export default function CandidateCard({
         {/* SLOGAN */}
         <div className="mt-2 rounded-xl bg-violet-50/70 px-2.5 py-1.5">
 
-          <p className="line-clamp-2 text-center text-[10px] italic leading-relaxed text-slate-600 sm:text-[11px] mt-2">
+          <p className="line-clamp-2 text-center text-[10px] italic leading-relaxed text-slate-600 sm:text-[11px]">
             “{slogan}”
           </p>
 

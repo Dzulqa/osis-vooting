@@ -70,74 +70,43 @@ export default function ResultsPage() {
   }, [summaryData, selectedPaslonId]);
 
   return (
-    <main className="min-h-screen bg-[#F8F7FF] pb-16">
+    <main className="min-h-screen bg-[#F8F7FF] pb-16 flex flex-col justify-between">
       {/* NAVBAR */}
       <Navbar />
 
-
-
-      <div className="mx-auto max-w-7xl px-6 pt-10 lg:px-10">
+      <div className="mx-auto w-full max-w-7xl px-6 pt-6 lg:px-10 flex-1 flex flex-col justify-center">
         {!eventConfig.isResultRevealed ? (
-          <div className="mx-auto max-w-4xl py-8">
-            <div className="rounded-3xl border border-amber-200 bg-white p-8 lg:p-12 shadow-md text-center">
-              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-amber-100 text-4xl shadow-inner mb-6">
-                🔒
-              </div>
-
-              <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-4 py-1.5 text-xs font-black text-amber-800 uppercase tracking-wide">
-                Otorisasi Penghitungan Suara Diperlukan
-              </span>
-
-              <h2 className="mt-4 text-3xl font-extrabold text-slate-900">
-                Hasil Rekapitulasi Suara Ditangguhkan
-              </h2>
-
-              <p className="mt-3 text-slate-600 max-w-2xl mx-auto text-sm leading-relaxed">
-                Sesuai regulasi KPU OSIS SMK Al Amanah, hasil perolehan suara <strong>tidak dihitung / ditampilkan secara otomatis</strong>. Ketua OSIS Saat Ini (Penyelenggara) harus menekan tombol aksi <strong>&quot;Mulai Perhitungan / Tampilkan Hasil&quot;</strong> agar perolehan suara direkapitulasi dan dapat dilihat oleh Saksi & Publik.
-              </p>
-
-              {/* Status Keamanan */}
-              <div className="mt-8 mx-auto max-w-md rounded-2xl border border-amber-100 bg-amber-50/60 p-4 text-left flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-amber-900">Status Keamanan Transaksi Database</p>
-                  <p className="text-xs text-amber-700 mt-0.5">{summaryData.totalVotes} Suara tersimpan aman &amp; terekam rahasia</p>
-                </div>
-                <span className="h-3 w-3 rounded-full bg-amber-500 animate-ping shrink-0" />
-              </div>
-
-              {/* Action buttons */}
-              <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link
-                  href="/ketua"
-                  className="w-full sm:w-auto cursor-pointer rounded-2xl bg-amber-600 px-6 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-amber-200 transition hover:bg-amber-700"
-                >
-                  👑 Ke Panel Ketua OSIS (Penyelenggara)
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    toggleResultRevealed(true);
-                  }}
-                  className="w-full sm:w-auto cursor-pointer rounded-2xl border border-amber-300 bg-amber-50 px-6 py-3.5 text-sm font-bold text-amber-900 transition hover:bg-amber-100"
-                >
-                  ⚡ Otorisasi Langsung Sekarang
-                </button>
-              </div>
+          /* TAMPILAN MINIMALIS SAAT TERKUNCI: HANYA NAVBAR + TULISAN SESI PERHITUNGAN BELUM DIBUKA */
+          <div className="my-auto py-20 text-center flex flex-col items-center justify-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-100/90 text-4xl shadow-sm border border-amber-200/80 mb-6">
+              🔒
             </div>
+
+            <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-4 py-1.5 text-xs font-black text-amber-900 uppercase tracking-widest mb-3">
+              KPU OSIS SMK Al Amanah
+            </span>
+
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
+              Sesi Perhitungan Belum Dibuka
+            </h1>
+
+            <p className="mt-3 text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
+              Hasil perolehan suara belum direkapitulasi. Menunggu pembukaan sesi perhitungan resmi oleh Penyelenggara (Ketua OSIS).
+            </p>
           </div>
         ) : (
           <>
             {/* HEADER SECTION */}
-            <div className="mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
               <div>
                 <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3.5 py-1 text-xs font-semibold text-emerald-700">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
                   Real-time Sync Database Active
                 </span>
-                <h1 className="mt-3 text-4xl font-extrabold text-slate-900">
+                <h1 className="mt-3 text-3xl font-black text-slate-900 lg:text-4xl">
                   Database &amp; Rekapitulasi <span className="text-violet-600">Per Paslon</span>
                 </h1>
-                <p className="mt-2 text-slate-500">
+                <p className="mt-2 text-slate-500 text-xs sm:text-sm">
                   Pantau perolehan suara dan log database transaksi voting secara langsung untuk setiap pasangan calon.
                 </p>
               </div>
@@ -146,13 +115,14 @@ export default function ResultsPage() {
                 <button
                   type="button"
                   onClick={() => toggleResultRevealed(false)}
-                  className="cursor-pointer rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800 transition hover:bg-amber-100"
+                  className="cursor-pointer rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
                 >
-                  🔒 Kunci Hasil Suara
+                  🔒 Kunci Kembali Hasil Suara
                 </button>
               </div>
-
             </div>
+
+
 
             {/* METRICS / STATS CARDS */}
             <div className="mb-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">

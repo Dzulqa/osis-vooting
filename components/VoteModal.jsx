@@ -10,7 +10,7 @@ export default function VoteModal({ candidate, onClose, onConfirm, isSubmitting 
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-100 text-xl font-bold text-violet-600">
           {candidate.nomor}
         </div>
-
+w
         {/* Judul */}
         <div className="mt-5 text-center">
           <h2 className="text-2xl font-bold text-slate-900">
