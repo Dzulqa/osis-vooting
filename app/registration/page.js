@@ -209,7 +209,7 @@ export default function RegistrationPage() {
               {/* API STATUS BADGE */}
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 border border-emerald-200">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                API Sinar Aktif ({students.length} Siswa • {teachers.length} Guru)
+                Aktif ({students.length} Siswa • {teachers.length} Guru)
               </span>
             </div>
 
