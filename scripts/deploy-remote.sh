@@ -26,7 +26,9 @@ if [ "$WANT" != "$HAVE" ]; then
 fi
 
 set -a; . "$BASE/shared/.env"; set +a
-export SHADOW_DATABASE_URL="${SHADOW_DATABASE_URL:-$DATABASE_URL}" # schema references it; deploy never uses it
+# The schema references SHADOW_DATABASE_URL and Prisma insists it differs from DATABASE_URL,
+# but `migrate deploy` never connects to it. A placeholder name is enough.
+export SHADOW_DATABASE_URL="${SHADOW_DATABASE_URL:-mysql://unused:unused@127.0.0.1:3306/unused_shadow}"
 nice -n 10 node "$BASE/tools/node_modules/prisma/build/index.js" migrate deploy --schema prisma/schema.prisma
 
 # --- 2. Switch + restart ---------------------------------------------------------------------
