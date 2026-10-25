@@ -1,6 +1,5 @@
 import { Geist, Geist_Mono, Fredoka, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import Footer from "@/components/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,9 +33,7 @@ export default function RootLayout({ children }) {
       lang="id"
       className={`${geistSans.variable} ${geistMono.variable} ${fredoka.variable} ${jakarta.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}
-        <Footer/>
-      </body>
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }

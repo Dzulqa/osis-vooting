@@ -10,6 +10,7 @@ import {
 } from "@/lib/votingStorage";
 import { BallotBox, Bunting, Confetti, FestiveBackdrop, Reveal } from "@/components/Festive";
 import CandidatePhoto from "@/components/CandidatePhoto";
+import Footer from "@/components/Footer";
 
 function formatSchedule(value) {
   if (!value) return "Belum dijadwalkan";
@@ -413,6 +414,9 @@ export default function LandingPage() {
           </ol>
         </div>
       </section>
+
+      {/* Hak cipta hanya ditampilkan di landing page */}
+      <Footer />
     </main>
   );
 }

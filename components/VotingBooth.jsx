@@ -310,7 +310,7 @@ export default function VotingBooth({ boothId }) {
   // ========================================
 
   return (
-    <main className="relative isolate flex h-[calc(100vh-45px)] flex-col overflow-hidden font-body text-ink">
+    <main className="relative isolate flex h-dvh flex-col overflow-hidden font-body text-ink">
       <FestiveBackdrop confetti={10} />
       <BilikBadge boothLabel={boothLabel} />
 
@@ -438,7 +438,7 @@ export default function VotingBooth({ boothId }) {
 
 function BoothStage({ boothLabel, confetti = 16, balloons = false, children }) {
   return (
-    <main className="relative isolate flex h-[calc(100vh-45px)] flex-col overflow-hidden font-body text-ink">
+    <main className="relative isolate flex h-dvh flex-col overflow-hidden font-body text-ink">
       <FestiveBackdrop confetti={confetti} />
       {balloons && <Balloons className="hidden md:block" />}
       <Bunting className="relative" />
