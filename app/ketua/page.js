@@ -169,7 +169,7 @@ function KetuaOsisDashboardContent() {
   const totalVotedCount = votedStudents.length;
 
   return (
-    <main className="min-h-screen bg-[#F8F7FF] pb-16">
+    <main className="min-h-screen bg-[#F6F9FF] pb-16">
       {/* NAVBAR */}
       <Navbar />
 

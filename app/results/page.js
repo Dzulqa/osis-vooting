@@ -70,7 +70,7 @@ export default function ResultsPage() {
   }, [summaryData, selectedPaslonId]);
 
   return (
-    <main className="min-h-screen bg-[#F8F7FF] pb-16 flex flex-col justify-between">
+    <main className="min-h-screen bg-[#F6F9FF] pb-16 flex flex-col justify-between">
       {/* NAVBAR */}
       <Navbar />
 

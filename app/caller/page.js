@@ -78,7 +78,7 @@ export default function CallerPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F8F7FF] pb-10">
+    <main className="min-h-screen bg-[#F6F9FF] pb-10">
       <Navbar />
 
       <div className="mx-auto max-w-7xl px-6 pt-8 lg:px-10">

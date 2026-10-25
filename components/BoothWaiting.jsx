@@ -1,6 +1,6 @@
 export default function BoothWaiting() {
   return (
-    <main className="flex min-h-[calc(100vh-80px)] items-center justify-center bg-[#F8F7FF]">
+    <main className="flex min-h-[calc(100vh-80px)] items-center justify-center bg-[#F6F9FF]">
       <div className="text-center">
 
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-violet-100">

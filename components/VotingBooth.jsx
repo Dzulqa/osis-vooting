@@ -188,7 +188,7 @@ export default function VotingBooth({ boothId }) {
 
   if (eventConfig.status === "closed") {
     return (
-      <main className="relative flex h-[calc(100vh-45px)] flex-col overflow-hidden bg-[#F8F7FF]">
+      <main className="relative flex h-[calc(100vh-45px)] flex-col overflow-hidden bg-[#F6F9FF]">
         <BilikBadge />
 
         <div className="flex flex-1 items-center justify-center p-6">
@@ -227,7 +227,7 @@ export default function VotingBooth({ boothId }) {
 
   if (currentBooth.status === "waiting") {
     return (
-      <main className="relative flex h-[calc(100vh-45px)] flex-col overflow-hidden bg-[#F8F7FF]">
+      <main className="relative flex h-[calc(100vh-45px)] flex-col overflow-hidden bg-[#F6F9FF]">
         <BilikBadge />
 
         <div className="flex flex-1 items-center justify-center p-6">
@@ -266,7 +266,7 @@ export default function VotingBooth({ boothId }) {
 
   if (currentBooth.status === "assigned") {
     return (
-      <main className="relative flex h-[calc(100vh-45px)] flex-col overflow-hidden bg-[#F8F7FF]">
+      <main className="relative flex h-[calc(100vh-45px)] flex-col overflow-hidden bg-[#F6F9FF]">
         <BilikBadge />
 
         <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
@@ -337,7 +337,7 @@ export default function VotingBooth({ boothId }) {
   // ========================================
 
   return (
-    <main className="relative flex h-[calc(100vh-45px)] flex-col overflow-hidden bg-[#F8F7FF]">
+    <main className="relative flex h-[calc(100vh-45px)] flex-col overflow-hidden bg-[#F6F9FF]">
       <BilikBadge />
 
       {/* HEADER */}
@@ -357,7 +357,7 @@ export default function VotingBooth({ boothId }) {
       </section>
 
       {/* AREA CARD */}
-      <section className="relative mx-auto flex min-h-0 w-full max-w-[950px] flex-1 items-center justify-center overflow-hidden px-3 pb-2 pt-0">
+      <section className="relative mx-auto flex min-h-0 w-full max-w-[1040px] flex-1 items-center justify-center overflow-hidden px-4 pb-2 pt-0">
         {candidates.map((candidate, index) => {
           const isSelected =
             selectedCandidate?.id === candidate.id;
@@ -365,7 +365,7 @@ export default function VotingBooth({ boothId }) {
           const hasSelected =
             selectedCandidate !== null;
 
-          let leftPosition = `${index * 32.5 + 3}%`;
+          let leftPosition = `${index * 33 + 2}%`;
           let opacity = "opacity-100";
           let scale = "scale-100";
           let pointerEvents = "";
@@ -385,9 +385,8 @@ export default function VotingBooth({ boothId }) {
               key={candidate.id}
               className={`
                 absolute top-0 bottom-0 my-auto
-                h-[390px] sm:h-[400px] lg:h-[410px]
-                w-[27%] max-w-[265px]
-                -translate-y-5
+                h-[445px] sm:h-[465px] lg:h-[485px]
+                w-[30%] max-w-[305px]
                 transition-all duration-[600ms] ease-in-out
                 ${opacity}
                 ${scale}
@@ -415,7 +414,7 @@ export default function VotingBooth({ boothId }) {
 
         {/* DETAIL */}
         {selectedCandidate && (
-          <div className="absolute top-0 bottom-0 my-auto left-[32.5%] h-[390px] sm:h-[400px] lg:h-[410px] w-[67.5%] -translate-y-5 pl-2">
+          <div className="absolute top-0 bottom-0 my-auto left-[33%] h-[445px] sm:h-[465px] lg:h-[485px] w-[67%] pl-3">
             <div
               className={`h-full w-full ${
                 isClosing

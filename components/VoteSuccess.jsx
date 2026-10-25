@@ -1,6 +1,6 @@
 export default function VoteSuccess() {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#F8F7FF]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#F6F9FF]">
       <div className="text-center">
 
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100">

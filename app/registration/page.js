@@ -178,7 +178,7 @@ export default function RegistrationPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F8F7FF] pb-12">
+    <main className="min-h-screen bg-[#F6F9FF] pb-12">
       <Navbar />
 
       <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-10">

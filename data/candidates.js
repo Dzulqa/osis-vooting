@@ -2,8 +2,8 @@ const candidates = [
   {
     id: 1,
     nomor: "01",
-    ketua: "Raka Pratama",
-    wakil: "Salsabila Putri",
+    ketua: "M. Azka Dimaputra",
+    wakil: "Fara Saravi",
     slogan: "Bersama kita bisa, bersama kita juara.",
     foto: "/candidates/paslon-01.png",
     visi: "Mewujudkan OSIS yang aktif, kreatif, dan menjadi ruang aspirasi seluruh siswa.",
@@ -23,8 +23,8 @@ const candidates = [
   {
     id: 2,
     nomor: "02",
-    ketua: "Daffa Alfarizi",
-    wakil: "Nabila Zahra",
+    ketua: "Fatimah Azahra",
+    wakil: "Putri Aulia Zahra",
     slogan: "Muda, kreatif, solutif, siap menginspirasi.",
     foto: "/candidates/paslon-02.png",
     visi: "Mewujudkan OSIS yang aktif, kreatif, dan menjadi ruang aspirasi seluruh siswa.",
@@ -44,8 +44,8 @@ const candidates = [
   {
     id: 3,
     nomor: "03",
-    ketua: "Farel Maulana",
-    wakil: "Syakila Kinan",
+    ketua: "Khanza Inaya",
+    wakil: "Fathir Nuraqli Permana",
     slogan: "Bergerak bersama, OSIS luar biasa.",
     foto: "/candidates/paslon-03.png",
     visi: "Mewujudkan OSIS yang aktif, kreatif, dan menjadi ruang aspirasi seluruh siswa.",

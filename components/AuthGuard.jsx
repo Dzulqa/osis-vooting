@@ -30,7 +30,7 @@ export default function AuthGuard({ children, allowedRoles = [] }) {
 
   if (isChecking) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8F7FF]">
+      <div className="flex min-h-screen items-center justify-center bg-[#F6F9FF]">
         <div className="flex flex-col items-center gap-3">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" />
           <p className="text-xs font-semibold text-slate-500">Memeriksa Hak Akses...</p>
@@ -41,7 +41,7 @@ export default function AuthGuard({ children, allowedRoles = [] }) {
 
   if (!session) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8F7FF]">
+      <div className="flex min-h-screen items-center justify-center bg-[#F6F9FF]">
         <div className="flex flex-col items-center gap-3">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" />
           <p className="text-xs font-semibold text-slate-500">Mengalihkan ke Halaman Login...</p>
@@ -59,7 +59,7 @@ export default function AuthGuard({ children, allowedRoles = [] }) {
 
   if (!isAuthorized) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#F8F7FF] px-6 py-12">
+      <main className="flex min-h-screen items-center justify-center bg-[#F6F9FF] px-6 py-12">
         <div className="w-full max-w-md rounded-3xl border border-rose-200 bg-white p-8 shadow-xl text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100 text-3xl">
             🚫
