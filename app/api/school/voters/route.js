@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
 
-const DEFAULT_API_URL = "https://sinar.smkalamanah.sch.id/api/service";
-const DEFAULT_API_KEY = "NTUJ9X720O3YFoHY5pzUV6nr9DpVMi6nkaOxHXHv";
-const DEFAULT_API_SECRET = "eTHcGkHPGoWKBNcGh4rOO8H9blTdtQj5SeoOteGDtnKngwyExG7RS2XDYUWY";
 
 // Memory cache
 let cachedToken = null;
@@ -49,14 +46,18 @@ export async function GET(request) {
       });
     }
 
-    const apiUrl = process.env.SCHOOL_API_URL || DEFAULT_API_URL;
-    const apiKey = process.env.SCHOOL_API_KEY || DEFAULT_API_KEY;
-    const apiSecret = process.env.SCHOOL_API_SECRET || DEFAULT_API_SECRET;
+    const apiUrl = process.env.SCHOOL_API_URL;
+    const apiKey = process.env.SCHOOL_API_KEY;
+    const apiSecret = process.env.SCHOOL_API_SECRET;
+
+    if (!apiUrl || !apiKey || !apiSecret) {
+      throw new Error("SCHOOL_API_URL, SCHOOL_API_KEY dan SCHOOL_API_SECRET belum dikonfigurasi di server.");
+    }
 
     const token = await getAccessToken(apiUrl, apiKey, apiSecret);
 
     // 1. Fetch Teachers & Page 1 of Students in parallel
-    const [teachersRes, studentPage1Res] = await Promise.all([
+    const [teachersRes, studentPage1Res, yearsRes] = await Promise.all([
       fetch(`${apiUrl}/master/teachers`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
@@ -65,12 +66,22 @@ export async function GET(request) {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       }),
+      fetch(`${apiUrl}/master/years`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      }),
     ]);
 
-    const [teachersData, studentPage1Data] = await Promise.all([
+    const [teachersData, studentPage1Data, yearsData] = await Promise.all([
       teachersRes.json(),
       studentPage1Res.json(),
+      yearsRes.json().catch(() => ({})),
     ]);
+
+    // Tahun ajaran dari Sinar (terbaru dulu, yang aktif ditandai)
+    const years = (yearsData.data || [])
+      .map((y) => ({ id: y.id, name: y.name, active: y.active === true || y.active === 1 }))
+      .sort((a, b) => b.name.localeCompare(a.name));
 
     // 2. Map & Filter Teachers (hanya status aktif: active === true || active === 1)
     const rawTeachers = teachersData.data || [];
@@ -134,6 +145,7 @@ export async function GET(request) {
       success: true,
       students: activeStudents,
       teachers: activeTeachers,
+      years,
       classes,
       stats: {
         totalStudents: activeStudents.length,

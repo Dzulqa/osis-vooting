@@ -1,56 +1,74 @@
-name: Deploy fe-suara to VPS
+name: Deploy fe-suara
 
 on:
   push:
-    branches:
-      - main # Change this to your default branch if different
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+
+# One deploy at a time; a newer push waits instead of killing a deploy halfway.
+concurrency:
+  group: deploy-fe-suara
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 15
+    env:
+      # `next build` never connects to the database; these only satisfy tooling that reads the schema.
+      DATABASE_URL: mysql://build:build@127.0.0.1:3306/build
+      SHADOW_DATABASE_URL: mysql://build:build@127.0.0.1:3306/build_shadow
+      NEXT_TELEMETRY_DISABLED: '1'
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20' # Assuming Node 20, adjust if needed
-          cache: 'npm'
+          node-version: 22
+          cache: npm
+
+      - name: Cache Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('app/**', 'components/**', 'lib/**', 'next.config.mjs') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
-      - name: Build project
+      - name: Build
         run: npm run build
 
-      - name: Archive build files
-        run: tar -czvf deploy.tar.gz .next public package.json package-lock.json ecosystem.config.js
+      - name: Package release
+        run: bash scripts/package-release.sh release.tar.gz
 
-      - name: Copy files to VPS via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT }}
-          source: "deploy.tar.gz"
-          target: "/home/deploy/apps/fe-suara"
-          overwrite: true
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+          SSH_PORT: ${{ secrets.VPS_PORT }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${SSH_PORT:-22}" "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Extract files, Install Prod Dependencies and Restart PM2 on VPS
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT }}
-          script: |
-            mkdir -p /home/deploy/apps/fe-suara
-            cd /home/deploy/apps/fe-suara
-            tar -xzvf deploy.tar.gz
-            npm ci --omit=dev
-            pm2 reload ecosystem.config.js || pm2 start ecosystem.config.js
-            pm2 save
-            rm deploy.tar.gz
+      - name: Upload and activate on VPS
+        env:
+          SSH_USER: ${{ secrets.VPS_USERNAME }}
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+          SSH_PORT: ${{ secrets.VPS_PORT }}
+        run: |
+          SSH="ssh -i $HOME/.ssh/deploy_key -p ${SSH_PORT:-22} -o BatchMode=yes"
+          REL=/apps/fe-suara/releases/${GITHUB_SHA::12}
+          $SSH "$SSH_USER@$SSH_HOST" "mkdir -p $REL"
+          $SSH "$SSH_USER@$SSH_HOST" "tar -xzf - -C $REL" < release.tar.gz
+          $SSH "$SSH_USER@$SSH_HOST" "cd $REL && bash deploy-remote.sh"

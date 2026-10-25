@@ -1,0 +1,38 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: suara-mysql
+    restart: unless-stopped
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-time-zone=+00:00
+      --max_connections=100
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-suara}
+      MYSQL_USER: ${MYSQL_USER:-suara}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-suara}
+    ports:
+      # 3307 avoids clashing with a local MySQL; bound to localhost only
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - suara_mysql_data:/var/lib/mysql
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Optional DB browser (dev only): docker compose --profile tools up -d adminer
+  adminer:
+    image: adminer
+    profiles: ["tools"]
+    ports:
+      - "127.0.0.1:8081:8080"
+    depends_on:
+      - mysql
+
+volumes:
+  suara_mysql_data:

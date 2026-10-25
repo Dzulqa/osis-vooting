@@ -1,7 +1,12 @@
+import BoothGuard from "@/components/BoothGuard";
 import VotingBooth from "@/components/VotingBooth";
 
 export default async function BoothPage({ params }) {
   const { id } = await params;
 
-  return <VotingBooth boothId={id} />;
+  return (
+    <BoothGuard boothId={id}>
+      <VotingBooth boothId={id} />
+    </BoothGuard>
+  );
 }

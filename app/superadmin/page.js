@@ -5,9 +5,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import AuthGuard from "@/components/AuthGuard";
+import SearchSelect from "@/components/SearchSelect";
+import useSinarData from "@/lib/useSinarData";
+import { Banner, DashboardHero, DashboardShell, StatTile } from "@/components/Dashboard";
 import {
   getAcademicYear,
-  saveAcademicYear,
+  getElections,
+  getElectionStats,
+  openNewElection,
+  setCurrentElection,
   getKetuaOsisIdentity,
   saveKetuaOsisIdentity,
   getCommitteeList,
@@ -16,10 +22,12 @@ import {
   getBooths,
   addBooth,
   removeBooth,
+  regenerateBoothCode,
   getCandidatesList,
   addCandidate,
   removeCandidate,
   getStudentsList,
+  saveStudentsList,
   importDptFromData,
   resetVotingSimulation,
   subscribeVotingStorage,
@@ -44,8 +52,16 @@ function SuperadminPageContent() {
   const [candidates, setCandidates] = useState([]);
   const [students, setStudents] = useState([]);
 
+  const [elections, setElections] = useState([]);
+
   // Form inputs
-  const [newYearInput, setNewYearInput] = useState("");
+  const [electionForm, setElectionForm] = useState({
+    academicYear: "",
+    name: "",
+    copyBooths: true,
+    copyCommittee: true,
+  });
+  const [isConfirmingElection, setIsConfirmingElection] = useState(false);
   const [ketuaForm, setKetuaForm] = useState({
     nama: "",
     nis: "",
@@ -54,15 +70,15 @@ function SuperadminPageContent() {
   });
 
   const [committeeForm, setCommitteeForm] = useState({
-    nama: "",
-    username: "",
+    person: "", // "siswa:<nis>" atau "guru:<kode>", dipilih dari Sinar
+    password: "",
     role: "Registrator",
   });
 
   const [paslonForm, setPaslonForm] = useState({
     nomor: "",
-    ketua: "",
-    wakil: "",
+    ketuaNis: "",
+    wakilNis: "",
     slogan: "",
     foto: "/candidates/paslon-01.png",
     visi: "",
@@ -70,7 +86,9 @@ function SuperadminPageContent() {
     programKerja: "",
   });
 
-  const [importJsonText, setImportJsonText] = useState("");
+  // Semua data master (tahun ajaran, kelas, siswa, guru) berasal dari Sinar
+  const sinar = useSinarData();
+  const [dptClass, setDptClass] = useState("");
   const [notification, setNotification] = useState(null);
 
   // Creds forms
@@ -84,9 +102,12 @@ function SuperadminPageContent() {
   });
 
   function loadAllData() {
-    const year = getAcademicYear();
-    setAcademicYearState(year);
-    if (!newYearInput) setNewYearInput(year);
+    setAcademicYearState(getAcademicYear());
+    setElections(
+      getElections()
+        .map((election) => ({ ...election, stats: getElectionStats(election.id) }))
+        .reverse()
+    );
 
     const ketua = getKetuaOsisIdentity();
     setKetuaOsisState(ketua);
@@ -109,6 +130,69 @@ function SuperadminPageContent() {
   }
 
 
+  // Tahun ajaran yang sudah punya pemilihan tidak bisa dibuka lagi
+  const yearOptions = sinar.years.map((y) => {
+    const used = elections.some((e) => e.academicYear === y.name);
+    return {
+      value: y.name,
+      label: y.name,
+      sublabel: used ? "Sudah ada pemilihan — aktifkan dari riwayat" : undefined,
+      badge: y.active ? "Aktif di Sinar" : undefined,
+    };
+  });
+  const currentElection = elections.find((e) => e.isCurrent);
+
+  const studentOptions = sinar.students.map((st) => ({
+    value: st.nis,
+    label: st.nama,
+    sublabel: `NIS ${st.nis} · ${st.kelas}`,
+    keywords: `${st.nis} ${st.kelas}`,
+  }));
+
+  const personOptions = [
+    ...sinar.teachers.map((t) => ({
+      value: `guru:${t.id}`,
+      label: t.nama,
+      sublabel: `Guru · ${t.nis}`,
+      keywords: t.nis,
+    })),
+    ...sinar.students.map((st) => ({
+      value: `siswa:${st.nis}`,
+      label: st.nama,
+      sublabel: `Siswa · NIS ${st.nis} · ${st.kelas}`,
+      keywords: `${st.nis} ${st.kelas}`,
+    })),
+  ];
+
+  const classOptions = [
+    { value: "", label: "Semua kelas", sublabel: `${sinar.students.length} siswa aktif` },
+    ...sinar.classes.map((c) => ({
+      value: c,
+      label: c,
+      sublabel: `${sinar.students.filter((st) => st.kelas === c).length} siswa`,
+    })),
+  ];
+
+  const paslonNumberOptions = Array.from({ length: 10 }, (_, i) => String(i + 1).padStart(2, "0"))
+    .filter((n) => !candidates.some((c) => String(c.nomor) === n))
+    .map((n) => ({ value: n, label: `Nomor urut ${n}` }));
+
+  const photoOptions = [1, 2, 3].map((n) => ({
+    value: `/candidates/paslon-0${n}.png`,
+    label: `Foto paslon-0${n}.png`,
+  }));
+
+  const jabatanOptions = [
+    "Ketua OSIS Saat Ini (Demisioner)",
+    "Ketua OSIS Aktif",
+  ].map((j) => ({ value: j, label: j }));
+
+  const roleOptions = [
+    { value: "Registrator", label: "Registrator (Meja Pendaftaran)" },
+    { value: "Caller", label: "Caller (Meja Pemanggil)" },
+    { value: "Saksi", label: "Saksi / KPU OSIS" },
+  ];
+
   useEffect(() => {
     queueMicrotask(() => {
       loadAllData();
@@ -123,12 +207,44 @@ function SuperadminPageContent() {
     }, 4000);
   }
 
-  // 1. Tahun Ajaran
-  function handleSaveYear(e) {
+  // 1. Pemilihan per tahun ajaran
+  function handleRequestNewElection(e) {
     e.preventDefault();
-    if (!newYearInput.trim()) return;
-    saveAcademicYear(newYearInput.trim());
-    showBanner("✅ Tahun Ajaran berhasil diperbarui!");
+    if (!electionForm.academicYear || !sinar.years.some((y) => y.name === electionForm.academicYear)) {
+      showBanner("⚠️ Pilih tahun ajaran dari daftar Sinar.", "warning");
+      return;
+    }
+    if (elections.some((el) => el.academicYear === electionForm.academicYear)) {
+      showBanner(`⚠️ Pemilihan ${electionForm.academicYear} sudah ada. Aktifkan dari daftar riwayat.`, "warning");
+      return;
+    }
+    setIsConfirmingElection(true);
+  }
+
+  function handleConfirmNewElection() {
+    const result = openNewElection(electionForm);
+    setIsConfirmingElection(false);
+
+    if (!result.success) {
+      showBanner(`⚠️ ${result.message}`, "warning");
+      return;
+    }
+
+    setElectionForm({ academicYear: "", name: "", copyBooths: true, copyCommittee: true });
+    // Ambil DPT terbaru dari Sinar untuk pemilihan baru
+    sinar.refresh(true);
+    showBanner(
+      `🎉 ${result.election.name} dibuka! Atur Ketua OSIS, paslon, dan DPT, lalu Ketua OSIS membuka jadwal pemilihan.`
+    );
+  }
+
+  function handleSwitchElection(election) {
+    const result = setCurrentElection(election.id);
+    if (!result.success) {
+      showBanner(`⚠️ ${result.message}`, "warning");
+      return;
+    }
+    showBanner(`🔁 Sekarang mengelola ${election.name}.`);
   }
 
   // 1b. Manajemen Creds Auth
@@ -160,6 +276,10 @@ function SuperadminPageContent() {
   // 2. Ketua OSIS
   function handleSaveKetua(e) {
     e.preventDefault();
+    if (!ketuaForm.nis || !ketuaForm.jabatan) {
+      showBanner("⚠️ Pilih siswa dan jabatan terlebih dahulu.", "warning");
+      return;
+    }
     saveKetuaOsisIdentity(ketuaForm);
     showBanner("👑 Identitas Ketua OSIS Saat Ini berhasil disimpan!");
   }
@@ -167,9 +287,26 @@ function SuperadminPageContent() {
   // 3. Panitia
   function handleAddCommittee(e) {
     e.preventDefault();
-    if (!committeeForm.nama || !committeeForm.username) return;
-    addCommitteeMember(committeeForm);
-    setCommitteeForm({ nama: "", username: "", role: "Registrator" });
+    const person = personOptions.find((p) => p.value === committeeForm.person);
+    if (!person || !committeeForm.password.trim()) return;
+
+    // Username diturunkan dari NIS / kode guru Sinar, bukan diketik bebas
+    const [type, refId] = committeeForm.person.split(":");
+    const username = String(refId).toLowerCase();
+
+    if (committee.some((m) => m.username === username)) {
+      showBanner("⚠️ Orang ini sudah terdaftar sebagai panitia.", "warning");
+      return;
+    }
+    addCommitteeMember({
+      nama: person.label,
+      username,
+      password: committeeForm.password.trim(),
+      role: committeeForm.role,
+      sinarType: type,
+      sinarId: refId,
+    });
+    setCommitteeForm({ person: "", password: "", role: "Registrator" });
     showBanner("👤 Akun Panitia baru berhasil ditambahkan!");
   }
 
@@ -184,6 +321,11 @@ function SuperadminPageContent() {
     showBanner(`➕ Bilik ${String(newB.id).padStart(2, "0")} berhasil ditambahkan!`);
   }
 
+  function handleRegenerateBoothCode(id) {
+    regenerateBoothCode(id);
+    showBanner(`🔑 Kode akses Bilik ${String(id).padStart(2, "0")} diganti. Perangkat lama harus login ulang.`);
+  }
+
   function handleRemoveBooth(id) {
     const success = removeBooth(id);
     if (success) {
@@ -196,31 +338,48 @@ function SuperadminPageContent() {
   // 5. Master Paslon
   function handleAddPaslon(e) {
     e.preventDefault();
-    if (!paslonForm.ketua || !paslonForm.wakil) return;
+    const ketua = sinar.students.find((st) => st.nis === paslonForm.ketuaNis);
+    const wakil = sinar.students.find((st) => st.nis === paslonForm.wakilNis);
+    if (!ketua || !wakil) {
+      showBanner("⚠️ Pilih calon ketua dan calon wakil dari data siswa Sinar.", "warning");
+      return;
+    }
+    if (ketua.nis === wakil.nis) {
+      showBanner("⚠️ Calon ketua dan wakil harus orang yang berbeda.", "warning");
+      return;
+    }
+    if (candidates.some((c) => [c.ketuaNis, c.wakilNis].some((n) => n && [ketua.nis, wakil.nis].includes(n)))) {
+      showBanner("⚠️ Salah satu calon sudah tergabung di paslon lain.", "warning");
+      return;
+    }
 
     const parsedMisi = paslonForm.misi
       ? paslonForm.misi.split("\n").filter((s) => s.trim())
-      : ["Meningkatkan kreativitas siswa", "Menjalin komunikasi terbuka"];
+      : [];
 
     const parsedProgr = paslonForm.programKerja
       ? paslonForm.programKerja.split("\n").filter((s) => s.trim())
-      : ["Pekan Olahraga", "Jumat Bersih"];
+      : [];
 
     addCandidate({
       nomor: paslonForm.nomor,
-      ketua: paslonForm.ketua,
-      wakil: paslonForm.wakil,
-      slogan: paslonForm.slogan || "Maju Bersama OSIS",
-      foto: paslonForm.foto || "/candidates/paslon-01.png",
-      visi: paslonForm.visi || "Mewujudkan OSIS yang aktif dan inovatif.",
+      ketua: ketua.nama,
+      ketuaNis: ketua.nis,
+      ketuaKelas: ketua.kelas,
+      wakil: wakil.nama,
+      wakilNis: wakil.nis,
+      wakilKelas: wakil.kelas,
+      slogan: paslonForm.slogan,
+      foto: paslonForm.foto,
+      visi: paslonForm.visi,
       misi: parsedMisi,
       programKerja: parsedProgr,
     });
 
     setPaslonForm({
       nomor: "",
-      ketua: "",
-      wakil: "",
+      ketuaNis: "",
+      wakilNis: "",
       slogan: "",
       foto: "/candidates/paslon-01.png",
       visi: "",
@@ -237,27 +396,21 @@ function SuperadminPageContent() {
   }
 
   // 6. Import DPT
-  function handleImportDptText(e) {
+  function handleSyncDpt(e) {
     e.preventDefault();
-    try {
-      const parsed = JSON.parse(importJsonText);
-      if (!Array.isArray(parsed)) {
-        showBanner("⚠️ Format JSON DPT harus berupa Array of Object siswa.", "warning");
-        return;
-      }
-      importDptFromData(parsed);
-      setImportJsonText("");
-      showBanner(`📥 Berhasil meng-import ${parsed.length} siswa ke DPT!`);
-    } catch {
-      showBanner("⚠️ Gagal membaca format JSON DPT. Pastikan format valid.", "warning");
+    const picked = sinar.students.filter((st) => !dptClass || st.kelas === dptClass);
+    if (picked.length === 0) {
+      showBanner("⚠️ Tidak ada siswa Sinar untuk kelas tersebut.", "warning");
+      return;
     }
+    importDptFromData(picked);
+    showBanner(`📥 ${picked.length} siswa dari Sinar dijadikan DPT${dptClass ? ` (${dptClass})` : ""}.`);
   }
 
   function handleResetDptDefault() {
-    if (window.confirm("Kembalikan Daftar Pemilih Tetap (DPT) ke data default sekolah?")) {
-      localStorage.removeItem("osis_custom_dpt");
-      loadAllData();
-      showBanner("🔄 DPT berhasil dikembalikan ke data default sekolah.");
+    if (window.confirm("Kosongkan seluruh Daftar Pemilih Tetap (DPT)?")) {
+      saveStudentsList([]);
+      showBanner("🔄 DPT berhasil dikosongkan.");
     }
   }
 
@@ -274,79 +427,51 @@ function SuperadminPageContent() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F6F9FF] pb-16">
+    <DashboardShell>
       {/* NAVBAR */}
       <Navbar />
 
       {/* NOTIFIKASI BANNER */}
-      {notification && (
-        <div className="mx-auto max-w-7xl px-6 pt-6 lg:px-10">
-          <div
-            className={`flex items-center justify-between rounded-2xl px-5 py-3.5 shadow-md ${
-              notification.type === "success"
-                ? "bg-emerald-600 text-white"
-                : "bg-amber-600 text-white"
-            }`}
-          >
-            <p className="text-sm font-semibold">{notification.message}</p>
-            <button
-              onClick={() => setNotification(null)}
-              className="text-xs font-bold underline"
-            >
-              Tutup
-            </button>
-          </div>
-        </div>
-      )}
+      <Banner notification={notification} onClose={() => setNotification(null)} />
 
-      <div className="mx-auto max-w-7xl px-6 pt-8 lg:px-10">
+      <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-10">
         {/* HEADER SUPERADMIN */}
-        <div className="mb-10 rounded-3xl border border-violet-200 bg-gradient-to-r from-violet-900 via-indigo-900 to-slate-900 p-6 lg:p-8 text-white shadow-xl">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-violet-500/30 border border-violet-400/40 px-3.5 py-1 text-xs font-extrabold text-violet-200">
-                <span>🌟 Superadmin Module</span>
-                <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />
-                <span>Pembina OSIS &amp; Tim IT</span>
-              </div>
-              <h1 className="mt-3 text-3xl font-extrabold lg:text-4xl text-white">
-                Pusat Kendali <span className="text-violet-300">Hak Akses Tertinggi</span>
-              </h1>
-              <p className="mt-2 text-violet-200 max-w-2xl text-sm leading-relaxed">
-                Kelola Tahun Ajaran ({academicYear}), Identitas Ketua OSIS Penyelenggara, Akun Panitia, Jumlah Bilik Suara Dinamis, Import DPT, Master Paslon, dan System Override.
-              </p>
-            </div>
-
-            <div className="shrink-0">
-              <button
-                type="button"
-                onClick={handleSystemOverride}
-                className="cursor-pointer rounded-2xl border border-rose-500/50 bg-rose-600/90 px-5 py-3.5 text-xs font-extrabold text-white shadow-lg transition hover:bg-rose-600 active:scale-[0.98]"
-              >
-                🚨 System Override / Reset Simulasi
-              </button>
-            </div>
-          </div>
-        </div>
+        <DashboardHero
+          theme="violet"
+          emoji="🌟"
+          badge="Superadmin · Pembina OSIS & tim IT"
+          title="Pusat kendali sistem"
+          description={`Sedang mengelola ${currentElection?.name || `pemilihan ${academicYear}`}: Ketua OSIS, akun panitia, bilik suara, pasangan calon, dan daftar pemilih.`}
+          aside={
+            <button
+              type="button"
+              onClick={handleSystemOverride}
+              className="rounded-2xl bg-white px-5 py-3 text-xs font-extrabold text-rose-600 shadow-lg transition hover:-translate-y-0.5 hover:bg-coral-soft hover:shadow-xl active:translate-y-0 active:scale-[0.98]"
+            >
+              🚨 Reset data simulasi
+            </button>
+          }
+        />
 
         {/* NAVIGATION TAB SUPERADMIN */}
-        <div className="mb-8 flex flex-wrap gap-2.5 border-b border-slate-200 pb-4">
+        <div className="mb-8 mt-6 flex flex-wrap gap-2 rounded-3xl bg-white/80 p-2 shadow-sm ring-1 ring-violet-100 backdrop-blur">
           {[
-            { id: "overview", label: "📊 Ringkasan & Tahun Ajaran" },
-            { id: "auth", label: "🔑 Hak Akses & Password" },
-            { id: "ketua", label: "👑 Identitas Ketua OSIS" },
-            { id: "panitia", label: "👥 Manajemen Panitia" },
-            { id: "bilik", label: "🗳️ Bilik Suara Dinamis" },
-            { id: "paslon", label: "🏆 Master Paslon" },
-            { id: "dpt", label: "📥 Import DPT Siswa" },
+            { id: "overview", label: "📊 Ringkasan", active: "bg-violet-600 text-white shadow-violet-400/25" },
+            { id: "auth", label: "🔑 Hak akses", active: "bg-coral text-ink shadow-rose-300/40" },
+            { id: "ketua", label: "👑 Ketua OSIS", active: "bg-sun text-ink shadow-amber-300/40" },
+            { id: "panitia", label: "👥 Panitia", active: "bg-mint text-ink shadow-emerald-300/40" },
+            { id: "bilik", label: "🗳️ Bilik suara", active: "bg-violet-600 text-white shadow-violet-400/25" },
+            { id: "paslon", label: "🏆 Paslon", active: "bg-coral text-ink shadow-rose-300/40" },
+            { id: "dpt", label: "📥 DPT siswa", active: "bg-sun text-ink shadow-amber-300/40" },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`cursor-pointer rounded-2xl px-4 py-2.5 text-xs font-bold transition ${
+              aria-pressed={activeTab === tab.id}
+              className={`rounded-2xl px-4 py-2.5 text-xs font-bold transition-all duration-300 ${
                 activeTab === tab.id
-                  ? "bg-violet-600 text-white shadow-md shadow-violet-200"
-                  : "bg-white text-slate-600 hover:bg-violet-50"
+                  ? `-translate-y-0.5 scale-105 shadow-lg ${tab.active}`
+                  : "text-slate-600 hover:-translate-y-0.5 hover:bg-sky"
               }`}
             >
               {tab.label}
@@ -362,56 +487,184 @@ function SuperadminPageContent() {
         {/* ======================================== */}
         {activeTab === "overview" && (
           <div className="space-y-8">
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
-                <p className="text-xs font-semibold text-slate-400">Tahun Ajaran Aktif</p>
-                <p className="mt-2 text-3xl font-black text-violet-700">{academicYear}</p>
-                <p className="mt-1 text-xs text-slate-500">Isolasi data akademik</p>
-              </div>
-
-              <div className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
-                <p className="text-xs font-semibold text-slate-400">Total DPT Siswa</p>
-                <p className="mt-2 text-3xl font-black text-slate-900">{students.length} <span className="text-xs font-normal text-slate-400">siswa</span></p>
-                <p className="mt-1 text-xs text-slate-500">Terdaftar di master data</p>
-              </div>
-
-              <div className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
-                <p className="text-xs font-semibold text-slate-400">Bilik Suara Aktif</p>
-                <p className="mt-2 text-3xl font-black text-emerald-600">{booths.length} <span className="text-xs font-normal text-slate-400">bilik</span></p>
-                <p className="mt-1 text-xs text-slate-500">Kapasitas TPS</p>
-              </div>
-
-              <div className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
-                <p className="text-xs font-semibold text-slate-400">Master Paslon</p>
-                <p className="mt-2 text-3xl font-black text-amber-600">{candidates.length} <span className="text-xs font-normal text-slate-400">paslon</span></p>
-                <p className="mt-1 text-xs text-slate-500">Kandidat pemilihan</p>
-              </div>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <StatTile icon="📅" label="Tahun ajaran aktif" value={academicYear} color="violet" />
+              <StatTile icon="🎓" label="Daftar pemilih (DPT)" value={students.length} unit="siswa" color="mint" delay={80} />
+              <StatTile icon="🗳️" label="Bilik suara" value={booths.length} unit="bilik" color="sun" delay={160} />
+              <StatTile icon="🏆" label="Pasangan calon" value={candidates.length} unit="paslon" color="coral" delay={240} />
             </div>
 
-            {/* FORM GANTI TAHUN AJARAN */}
-            <div className="rounded-3xl border border-violet-100 bg-white p-6 sm:p-8 shadow-sm">
-              <h2 className="text-xl font-bold text-slate-900">
-                1. Manajemen Tahun Ajaran (Academic Year)
-              </h2>
-              <p className="mt-1 text-xs text-slate-500">
-                Ganti tahun ajaran aktif untuk mengisolasi data penyelenggaraan pemilu per tahun akademik.
-              </p>
+            {/* PEMILIHAN PER TAHUN AJARAN */}
+            <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
+              {/* Buka pemilihan baru */}
+              <div className="relative overflow-hidden rounded-[1.75rem] bg-white/90 p-6 shadow-[0_12px_40px_-24px_rgba(31,42,72,0.25)] ring-1 ring-slate-200/60 sm:p-8">
+                <span aria-hidden="true" className="absolute left-8 top-0 h-1.5 w-20 rounded-b-full bg-gradient-to-r from-violet-300 to-lilac" />
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-50 text-2xl ring-1 ring-violet-100">🗓️</span>
+                  <div>
+                    <h2 className="font-display text-xl font-semibold text-ink">Buka pemilihan baru</h2>
+                    <p className="text-xs text-slate-500">Satu pemilihan untuk setiap tahun ajaran — datanya terpisah.</p>
+                  </div>
+                </div>
 
-              <form onSubmit={handleSaveYear} className="mt-6 flex flex-col sm:flex-row gap-4 max-w-lg">
-                <input
-                  type="text"
-                  value={newYearInput}
-                  onChange={(e) => setNewYearInput(e.target.value)}
-                  placeholder="Contoh: 2026/2027"
-                  className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-violet-500"
-                />
-                <button
-                  type="submit"
-                  className="cursor-pointer rounded-xl bg-violet-600 px-6 py-2.5 text-xs font-bold text-white transition hover:bg-violet-700 shadow-sm"
-                >
-                  Simpan Tahun Ajaran
-                </button>
-              </form>
+                <div className="mt-5 rounded-2xl bg-sky/70 p-4 text-xs leading-relaxed text-slate-600 ring-1 ring-violet-100">
+                  Pemilihan baru dimulai <span className="font-bold text-ink">kosong</span>: paslon, DPT, antrean, dan suara
+                  tidak dibawa. Pemilihan {academicYear} tetap tersimpan sebagai arsip dan bisa dibuka lagi kapan saja.
+                </div>
+
+                {sinar.error && (
+                  <p className="mt-3 text-xs font-semibold text-rose-600">
+                    ⚠️ {sinar.error}{" "}
+                    <button type="button" onClick={() => sinar.refresh(true)} className="underline">
+                      Coba lagi
+                    </button>
+                  </p>
+                )}
+
+                <form onSubmit={handleRequestNewElection} className="mt-5 space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-600">Tahun ajaran</label>
+                    <SearchSelect
+                      className="mt-1.5"
+                      options={yearOptions}
+                      value={electionForm.academicYear}
+                      onChange={(year) =>
+                        setElectionForm((f) => ({
+                          ...f,
+                          academicYear: year,
+                          name: f.name && !f.name.startsWith("Pemilihan Ketua OSIS ") ? f.name : `Pemilihan Ketua OSIS ${year}`,
+                        }))
+                      }
+                      loading={sinar.loading && yearOptions.length === 0}
+                      placeholder="Pilih tahun ajaran dari Sinar"
+                      searchPlaceholder="Cari tahun ajaran..."
+                      emptyText="Tahun ajaran Sinar tidak ditemukan."
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="election-name" className="text-xs font-bold text-slate-600">Nama pemilihan</label>
+                    <input
+                      id="election-name"
+                      type="text"
+                      value={electionForm.name}
+                      onChange={(e) => setElectionForm((f) => ({ ...f, name: e.target.value }))}
+                      placeholder="Pemilihan Ketua OSIS 2027/2028"
+                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+                    />
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {[
+                      { key: "copyBooths", label: "Salin bilik suara", hint: "Kode akses tetap, perangkat tidak perlu login ulang" },
+                      { key: "copyCommittee", label: "Salin akun panitia", hint: "Registrator, caller, dan saksi" },
+                    ].map((opt) => (
+                      <label
+                        key={opt.key}
+                        className={`flex cursor-pointer items-start gap-2.5 rounded-2xl p-3 ring-1 transition ${
+                          electionForm[opt.key] ? "bg-violet-50 ring-violet-200" : "bg-white ring-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={electionForm[opt.key]}
+                          onChange={(e) => setElectionForm((f) => ({ ...f, [opt.key]: e.target.checked }))}
+                          className="mt-0.5 h-4 w-4 accent-violet-600"
+                        />
+                        <span>
+                          <span className="block text-xs font-bold text-ink">{opt.label}</span>
+                          <span className="block text-[11px] text-slate-500">{opt.hint}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+
+                  {isConfirmingElection ? (
+                    <div className="fx-pop-in rounded-2xl bg-sun-soft p-4 ring-1 ring-amber-200">
+                      <p className="text-xs font-bold text-amber-900">
+                        Buka &ldquo;{electionForm.name || `Pemilihan Ketua OSIS ${electionForm.academicYear}`}&rdquo; dan jadikan aktif?
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-amber-800">
+                        Semua dashboard, bilik, dan halaman publik akan langsung beralih ke pemilihan ini.
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsConfirmingElection(false)}
+                          className="flex-1 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-50"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleConfirmNewElection}
+                          className="flex-1 rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-violet-700"
+                        >
+                          Ya, buka pemilihan
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="submit"
+                      className="w-full rounded-xl bg-violet-600 px-6 py-3 text-xs font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-700 active:translate-y-0"
+                    >
+                      ✨ Buka pemilihan baru
+                    </button>
+                  )}
+                </form>
+              </div>
+
+              {/* Riwayat pemilihan */}
+              <div className="relative overflow-hidden rounded-[1.75rem] bg-white/90 p-6 shadow-[0_12px_40px_-24px_rgba(31,42,72,0.25)] ring-1 ring-slate-200/60 sm:p-8">
+                <span aria-hidden="true" className="absolute left-8 top-0 h-1.5 w-20 rounded-b-full bg-gradient-to-r from-mint to-violet-200" />
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-mint-soft text-2xl ring-1 ring-emerald-100">📚</span>
+                  <div>
+                    <h2 className="font-display text-xl font-semibold text-ink">Riwayat pemilihan</h2>
+                    <p className="text-xs text-slate-500">Aktifkan pemilihan lama untuk melihat arsip hasilnya.</p>
+                  </div>
+                </div>
+
+                <ul className="mt-5 space-y-3">
+                  {elections.map((election) => (
+                    <li
+                      key={election.id}
+                      className={`rounded-2xl p-4 ring-1 transition ${
+                        election.isCurrent ? "bg-violet-50/80 ring-violet-200" : "bg-white ring-slate-200/70"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-ink">{election.name}</p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">
+                            Tahun ajaran {election.academicYear} · dibuka{" "}
+                            {new Date(election.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                          </p>
+                        </div>
+                        {election.isCurrent ? (
+                          <span className="shrink-0 rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-bold text-white">Aktif</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSwitchElection(election)}
+                            className="shrink-0 rounded-full bg-white px-3 py-1 text-[11px] font-bold text-violet-700 ring-1 ring-violet-200 transition hover:bg-violet-50"
+                          >
+                            Aktifkan
+                          </button>
+                        )}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] font-bold text-slate-600">
+                        <span className="rounded-full bg-white px-2 py-0.5 ring-1 ring-slate-200">🗳️ {election.stats.votes} suara</span>
+                        <span className="rounded-full bg-white px-2 py-0.5 ring-1 ring-slate-200">🎓 {election.stats.voters} DPT</span>
+                        <span className="rounded-full bg-white px-2 py-0.5 ring-1 ring-slate-200">🏆 {election.stats.candidates} paslon</span>
+                        <span className="rounded-full bg-white px-2 py-0.5 ring-1 ring-slate-200">🚪 {election.stats.booths} bilik</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
         )}
@@ -422,7 +675,7 @@ function SuperadminPageContent() {
         {activeTab === "auth" && (
           <div className="grid gap-8 lg:grid-cols-2">
             {/* SUPERADMIN CREDS FORM */}
-            <div className="rounded-3xl border border-violet-200 bg-white p-6 sm:p-8 shadow-sm">
+            <div className="rounded-[1.75rem] bg-white p-6 sm:p-8 shadow-md ring-2 ring-violet-200 transition-shadow duration-300 hover:shadow-xl">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-700 text-lg font-bold">
                   🌟
@@ -474,7 +727,7 @@ function SuperadminPageContent() {
             </div>
 
             {/* KETUA OSIS CREDS FORM */}
-            <div className="rounded-3xl border border-amber-200 bg-white p-6 sm:p-8 shadow-sm">
+            <div className="rounded-[1.75rem] bg-white p-6 sm:p-8 shadow-md ring-2 ring-sun transition-shadow duration-300 hover:shadow-xl">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-800 text-lg font-bold">
                   👑
@@ -532,7 +785,7 @@ function SuperadminPageContent() {
         {/* TAB 2: IDENTITAS KETUA OSIS              */}
         {/* ======================================== */}
         {activeTab === "ketua" && (
-          <div className="rounded-3xl border border-amber-200 bg-white p-6 sm:p-8 shadow-sm max-w-3xl">
+          <div className="rounded-[1.75rem] bg-white p-6 sm:p-8 shadow-md ring-2 ring-sun transition-shadow duration-300 hover:shadow-xl max-w-3xl">
             <div className="flex items-center gap-3 mb-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-800 text-lg">
                 👑
@@ -550,41 +803,48 @@ function SuperadminPageContent() {
             <form onSubmit={handleSaveKetua} className="mt-6 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Nama Lengkap Ketua OSIS Penyelenggara
+                  Siswa Ketua OSIS Penyelenggara (dari Sinar)
                 </label>
-                <input
-                  type="text"
-                  value={ketuaForm.nama}
-                  onChange={(e) => setKetuaForm({ ...ketuaForm, nama: e.target.value })}
-                  placeholder="Nama Ketua OSIS..."
-                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-violet-500"
+                <SearchSelect
+                  options={studentOptions}
+                  value={ketuaForm.nis}
+                  onChange={(nis) => {
+                    const st = sinar.students.find((x) => x.nis === nis);
+                    if (st) setKetuaForm({ ...ketuaForm, nama: st.nama, nis: st.nis, kelas: st.kelas });
+                  }}
+                  loading={sinar.loading && studentOptions.length === 0}
+                  placeholder="Cari nama atau NIS siswa..."
+                  searchPlaceholder="Ketik nama, NIS, atau kelas..."
+                  emptyText="Siswa tidak ditemukan di Sinar."
+                  required
                 />
+                {ketuaForm.nis && !studentOptions.some((o) => o.value === ketuaForm.nis) && !sinar.loading && (
+                  <p className="mt-1 text-[11px] font-semibold text-amber-600">
+                    ⚠️ {ketuaForm.nama} ({ketuaForm.kelas}) tidak ada di daftar siswa aktif Sinar. Pilih ulang.
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    NIS
-                  </label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">NIS</label>
                   <input
                     type="text"
                     value={ketuaForm.nis}
-                    onChange={(e) => setKetuaForm({ ...ketuaForm, nis: e.target.value })}
-                    placeholder="NIS..."
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-violet-500"
+                    readOnly
+                    placeholder="Terisi otomatis dari Sinar"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-600 outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Kelas
-                  </label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Kelas</label>
                   <input
                     type="text"
                     value={ketuaForm.kelas}
-                    onChange={(e) => setKetuaForm({ ...ketuaForm, kelas: e.target.value })}
-                    placeholder="Contoh: XII RPL 1"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-violet-500"
+                    readOnly
+                    placeholder="Terisi otomatis dari Sinar"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-600 outline-none"
                   />
                 </div>
               </div>
@@ -593,12 +853,13 @@ function SuperadminPageContent() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Status / Jabatan Resmi
                 </label>
-                <input
-                  type="text"
+                <SearchSelect
+                  options={jabatanOptions}
                   value={ketuaForm.jabatan}
-                  onChange={(e) => setKetuaForm({ ...ketuaForm, jabatan: e.target.value })}
-                  placeholder="Contoh: Ketua OSIS Masa Bakti 2025/2026 (Demisioner)"
-                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-violet-500"
+                  onChange={(jabatan) => setKetuaForm({ ...ketuaForm, jabatan })}
+                  placeholder="Pilih jabatan"
+                  searchPlaceholder="Cari jabatan..."
+                  required
                 />
               </div>
 
@@ -619,25 +880,28 @@ function SuperadminPageContent() {
         {/* ======================================== */}
         {activeTab === "panitia" && (
           <div className="grid gap-8 lg:grid-cols-3">
-            <div className="lg:col-span-1 rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
+            <div className="lg:col-span-1 rounded-[1.75rem] bg-white p-6 shadow-md ring-1 ring-violet-100 transition-shadow duration-300 hover:shadow-xl">
               <h2 className="text-lg font-bold text-slate-900">
                 Tambah Akun Panitia
               </h2>
               <p className="mt-1 text-xs text-slate-500">
-                Buatkan akun baru untuk petugas TPS.
+                Pilih petugas dari data Sinar, lalu buatkan akun untuk petugas TPS.
               </p>
 
               <form onSubmit={handleAddCommittee} className="mt-5 space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Nama Panitia
+                    Petugas (guru / siswa dari Sinar)
                   </label>
-                  <input
-                    type="text"
-                    value={committeeForm.nama}
-                    onChange={(e) => setCommitteeForm({ ...committeeForm, nama: e.target.value })}
-                    placeholder="Nama..."
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-violet-500"
+                  <SearchSelect
+                    options={personOptions}
+                    value={committeeForm.person}
+                    onChange={(person) => setCommitteeForm({ ...committeeForm, person })}
+                    loading={sinar.loading && personOptions.length === 0}
+                    placeholder="Cari nama, NIS, atau kode guru..."
+                    searchPlaceholder="Ketik nama, NIS, atau kode..."
+                    emptyText="Tidak ditemukan di Sinar."
+                    required
                   />
                 </div>
 
@@ -647,10 +911,24 @@ function SuperadminPageContent() {
                   </label>
                   <input
                     type="text"
-                    value={committeeForm.username}
-                    onChange={(e) => setCommitteeForm({ ...committeeForm, username: e.target.value })}
-                    placeholder="Username..."
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-violet-500"
+                    value={committeeForm.person ? committeeForm.person.split(":")[1].toLowerCase() : ""}
+                    readOnly
+                    placeholder="Otomatis dari NIS / kode Sinar"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-600 outline-none font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Password Akun
+                  </label>
+                  <input
+                    type="text"
+                    value={committeeForm.password}
+                    onChange={(e) => setCommitteeForm({ ...committeeForm, password: e.target.value })}
+                    placeholder="Password..."
+                    required
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-violet-500 font-mono"
                   />
                 </div>
 
@@ -658,15 +936,13 @@ function SuperadminPageContent() {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Peran Panitia
                   </label>
-                  <select
+                  <SearchSelect
+                    options={roleOptions}
                     value={committeeForm.role}
-                    onChange={(e) => setCommitteeForm({ ...committeeForm, role: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-violet-500"
-                  >
-                    <option value="Registrator">Registrator (Meja Pendaftaran)</option>
-                    <option value="Caller">Caller (Meja Pemanggil)</option>
-                    <option value="Saksi">Saksi / KPU OSIS</option>
-                  </select>
+                    onChange={(role) => setCommitteeForm({ ...committeeForm, role })}
+                    searchPlaceholder="Cari peran..."
+                    required
+                  />
                 </div>
 
                 <button
@@ -678,7 +954,7 @@ function SuperadminPageContent() {
               </form>
             </div>
 
-            <div className="lg:col-span-2 rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
+            <div className="lg:col-span-2 rounded-[1.75rem] bg-white p-6 shadow-md ring-1 ring-violet-100 transition-shadow duration-300 hover:shadow-xl">
               <h2 className="text-lg font-bold text-slate-900">
                 Daftar Panitia Aktif ({committee.length})
               </h2>
@@ -700,6 +976,11 @@ function SuperadminPageContent() {
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">Username: @{item.username}</p>
+                      {!item.password && (
+                        <p className="text-[11px] font-semibold text-amber-600 mt-0.5">
+                          ⚠️ Belum punya password — hapus &amp; buat ulang agar bisa login.
+                        </p>
+                      )}
                     </div>
 
                     <button
@@ -719,7 +1000,7 @@ function SuperadminPageContent() {
         {/* TAB 4: BILIK SUARA DINAMIS                */}
         {/* ======================================== */}
         {activeTab === "bilik" && (
-          <div className="rounded-3xl border border-violet-100 bg-white p-6 sm:p-8 shadow-sm max-w-4xl">
+          <div className="rounded-[1.75rem] bg-white p-6 sm:p-8 shadow-md ring-1 ring-violet-100 transition-shadow duration-300 hover:shadow-xl">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div>
                 <h2 className="text-xl font-bold text-slate-900">
@@ -727,6 +1008,9 @@ function SuperadminPageContent() {
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Tambah atau kurangi jumlah Bilik Suara secara real-time sesuai kebutuhan kapasitas TPS.
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Perangkat bilik login di <code className="font-mono text-violet-700">/login</code> (tab Bilik suara) menggunakan kode akses masing-masing bilik.
                 </p>
               </div>
 
@@ -739,7 +1023,7 @@ function SuperadminPageContent() {
               </button>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {booths.map((booth) => (
                 <div
                   key={booth.id}
@@ -757,6 +1041,19 @@ function SuperadminPageContent() {
                     <p className="text-xs text-slate-500 mt-2">
                       URL: <code className="font-mono text-violet-700">/booth/{booth.id}</code>
                     </p>
+                    <div className="mt-3 flex items-center justify-between rounded-xl border border-violet-100 bg-white px-3 py-2">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase text-slate-400">Kode Akses</p>
+                        <p className="font-mono text-base font-black tracking-widest text-slate-900">{booth.accessCode}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRegenerateBoothCode(booth.id)}
+                        className="cursor-pointer text-[11px] font-bold text-violet-600 hover:underline"
+                      >
+                        Ganti Kode
+                      </button>
+                    </div>
                   </div>
 
                   <div className="mt-5 border-t border-slate-200 pt-3 flex items-center justify-between">
@@ -787,7 +1084,7 @@ function SuperadminPageContent() {
         {/* ======================================== */}
         {activeTab === "paslon" && (
           <div className="grid gap-8 lg:grid-cols-3">
-            <div className="lg:col-span-1 rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
+            <div className="lg:col-span-1 rounded-[1.75rem] bg-white p-6 shadow-md ring-1 ring-violet-100 transition-shadow duration-300 hover:shadow-xl">
               <h2 className="text-lg font-bold text-slate-900">
                 Input Master Paslon
               </h2>
@@ -800,38 +1097,46 @@ function SuperadminPageContent() {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Nomor Urut
                   </label>
-                  <input
-                    type="text"
+                  <SearchSelect
+                    options={paslonNumberOptions}
                     value={paslonForm.nomor}
-                    onChange={(e) => setPaslonForm({ ...paslonForm, nomor: e.target.value })}
-                    placeholder="Contoh: 04"
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-violet-500"
+                    onChange={(nomor) => setPaslonForm({ ...paslonForm, nomor })}
+                    placeholder="Pilih nomor urut"
+                    searchPlaceholder="Cari nomor..."
+                    emptyText="Semua nomor urut sudah terpakai."
+                    required
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Nama Calon Ketua
+                    Calon Ketua (siswa Sinar)
                   </label>
-                  <input
-                    type="text"
-                    value={paslonForm.ketua}
-                    onChange={(e) => setPaslonForm({ ...paslonForm, ketua: e.target.value })}
-                    placeholder="Nama Ketua..."
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-violet-500"
+                  <SearchSelect
+                    options={studentOptions.filter((o) => o.value !== paslonForm.wakilNis)}
+                    value={paslonForm.ketuaNis}
+                    onChange={(ketuaNis) => setPaslonForm({ ...paslonForm, ketuaNis })}
+                    loading={sinar.loading && studentOptions.length === 0}
+                    placeholder="Cari nama atau NIS..."
+                    searchPlaceholder="Ketik nama, NIS, atau kelas..."
+                    emptyText="Siswa tidak ditemukan di Sinar."
+                    required
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Nama Calon Wakil
+                    Calon Wakil (siswa Sinar)
                   </label>
-                  <input
-                    type="text"
-                    value={paslonForm.wakil}
-                    onChange={(e) => setPaslonForm({ ...paslonForm, wakil: e.target.value })}
-                    placeholder="Nama Wakil..."
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-violet-500"
+                  <SearchSelect
+                    options={studentOptions.filter((o) => o.value !== paslonForm.ketuaNis)}
+                    value={paslonForm.wakilNis}
+                    onChange={(wakilNis) => setPaslonForm({ ...paslonForm, wakilNis })}
+                    loading={sinar.loading && studentOptions.length === 0}
+                    placeholder="Cari nama atau NIS..."
+                    searchPlaceholder="Ketik nama, NIS, atau kelas..."
+                    emptyText="Siswa tidak ditemukan di Sinar."
+                    required
                   />
                 </div>
 
@@ -850,14 +1155,14 @@ function SuperadminPageContent() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    URL Foto Paslon
+                    Foto Paslon
                   </label>
-                  <input
-                    type="text"
+                  <SearchSelect
+                    options={photoOptions}
                     value={paslonForm.foto}
-                    onChange={(e) => setPaslonForm({ ...paslonForm, foto: e.target.value })}
-                    placeholder="/candidates/paslon-01.png"
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-violet-500"
+                    onChange={(foto) => setPaslonForm({ ...paslonForm, foto })}
+                    searchPlaceholder="Cari foto..."
+                    required
                   />
                 </div>
 
@@ -883,7 +1188,7 @@ function SuperadminPageContent() {
               </form>
             </div>
 
-            <div className="lg:col-span-2 rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
+            <div className="lg:col-span-2 rounded-[1.75rem] bg-white p-6 shadow-md ring-1 ring-violet-100 transition-shadow duration-300 hover:shadow-xl">
               <h2 className="text-lg font-bold text-slate-900">
                 Master Data Paslon Aktif ({candidates.length})
               </h2>
@@ -931,34 +1236,45 @@ function SuperadminPageContent() {
         {/* ======================================== */}
         {activeTab === "dpt" && (
           <div className="grid gap-8 lg:grid-cols-3">
-            <div className="lg:col-span-1 rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
+            <div className="lg:col-span-1 rounded-[1.75rem] bg-white p-6 shadow-md ring-1 ring-violet-100 transition-shadow duration-300 hover:shadow-xl">
               <h2 className="text-lg font-bold text-slate-900">
-                Import DPT (Excel / CSV / JSON)
+                Sinkronisasi DPT dari Sinar
               </h2>
               <p className="mt-1 text-xs text-slate-500">
-                Paste data JSON DPT siswa untuk memperbarui master pemilih.
+                DPT hanya berisi siswa aktif dari Sinar. Pilih kelas, atau semua kelas, lalu sinkronkan.
               </p>
 
-              <form onSubmit={handleImportDptText} className="mt-5 space-y-4">
+              <form onSubmit={handleSyncDpt} className="mt-5 space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Data DPT (JSON Format)
+                    Kelas
                   </label>
-                  <textarea
-                    rows={6}
-                    value={importJsonText}
-                    onChange={(e) => setImportJsonText(e.target.value)}
-                    placeholder={`[\n  { "id": 1, "nis": "001", "nama": "Ahmad Hilbram", "kelas": "XII RPL 1" }\n]`}
-                    className="w-full rounded-xl border border-slate-200 p-3 font-mono text-[11px] text-slate-800 outline-none focus:border-violet-500"
+                  <SearchSelect
+                    options={classOptions}
+                    value={dptClass}
+                    onChange={setDptClass}
+                    loading={sinar.loading && classOptions.length === 1}
+                    searchPlaceholder="Cari kelas..."
+                    emptyText="Kelas tidak ditemukan."
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full cursor-pointer rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-violet-700 shadow-sm"
+                  disabled={sinar.loading || sinar.students.length === 0}
+                  className="w-full cursor-pointer rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-violet-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  📥 Import Data DPT
+                  📥 Jadikan DPT dari Sinar
                 </button>
+                <button
+                  type="button"
+                  onClick={() => sinar.refresh(true)}
+                  disabled={sinar.loading}
+                  className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                >
+                  {sinar.loading ? "Memuat dari Sinar..." : "🔄 Muat ulang data Sinar"}
+                </button>
+                {sinar.error && <p className="text-xs font-semibold text-rose-600">⚠️ {sinar.error}</p>}
               </form>
 
               <div className="mt-6 border-t border-slate-100 pt-4">
@@ -966,12 +1282,12 @@ function SuperadminPageContent() {
                   onClick={handleResetDptDefault}
                   className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
                 >
-                  🔄 Reset DPT ke Default Sekolah
+                  🔄 Kosongkan DPT
                 </button>
               </div>
             </div>
 
-            <div className="lg:col-span-2 rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
+            <div className="lg:col-span-2 rounded-[1.75rem] bg-white p-6 shadow-md ring-1 ring-violet-100 transition-shadow duration-300 hover:shadow-xl">
               <h2 className="text-lg font-bold text-slate-900">
                 Daftar Pemilih Tetap / DPT ({students.length} Siswa)
               </h2>
@@ -1003,7 +1319,7 @@ function SuperadminPageContent() {
           </div>
         )}
       </div>
-    </main>
+    </DashboardShell>
   );
 }
 

@@ -6,15 +6,33 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "prisma generate",
+    "db:up": "sh scripts/compose.sh up -d mysql --wait",
+    "db:down": "sh scripts/compose.sh down",
+    "db:migrate": "node --env-file=.env.local --env-file=.env node_modules/prisma/build/index.js migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:generate": "prisma generate",
+    "db:seed": "node --env-file=.env.local --env-file=.env prisma/seed.mjs",
+    "db:reset": "node --env-file=.env.local --env-file=.env node_modules/prisma/build/index.js migrate reset --force",
+    "db:studio": "node --env-file=.env.local --env-file=.env node_modules/prisma/build/index.js studio"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.mjs"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.2.2",
+    "@prisma/client": "^6.19.3",
     "next": "16.2.12",
+    "prisma": "^6.19.3",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "tailwindcss": "^4"

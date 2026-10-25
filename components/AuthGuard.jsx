@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { getAuthSession, logoutUser, subscribeVotingStorage } from "@/lib/votingStorage";
+import {
+  getAuthSession,
+  getHomePathForRole,
+  logoutUser,
+  subscribeVotingStorage,
+  ROLE_LABELS,
+} from "@/lib/votingStorage";
 
 export default function AuthGuard({ children, allowedRoles = [] }) {
   const router = useRouter();
@@ -71,14 +77,12 @@ export default function AuthGuard({ children, allowedRoles = [] }) {
           </p>
 
           <div className="mt-6 flex flex-col gap-3">
-            {session.role === "ketua" && (
-              <Link
-                href="/ketua"
-                className="w-full rounded-xl bg-amber-600 px-4 py-3 text-xs font-bold text-white shadow-md transition hover:bg-amber-700"
-              >
-                👑 Masuk ke Dashboard Ketua OSIS
-              </Link>
-            )}
+            <Link
+              href={getHomePathForRole(session.role)}
+              className="w-full rounded-xl bg-violet-600 px-4 py-3 text-xs font-bold text-white shadow-md transition hover:bg-violet-700"
+            >
+              Ke Halaman {ROLE_LABELS[session.role] || "Utama"}
+            </Link>
             <button
               onClick={() => {
                 logoutUser();

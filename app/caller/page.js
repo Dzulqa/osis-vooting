@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
+import AuthGuard from "@/components/AuthGuard";
+import { DashboardHero, DashboardShell } from "@/components/Dashboard";
 import {
 
   getBooths,
@@ -13,6 +15,14 @@ import {
 } from "@/lib/votingStorage";
 
 export default function CallerPage() {
+  return (
+    <AuthGuard allowedRoles={["ketua", "caller"]}>
+      <CallerPageContent />
+    </AuthGuard>
+  );
+}
+
+function CallerPageContent() {
   const [queue, setQueue] = useState([]);
   const [booths, setBooths] = useState([]);
   const [eventConfig, setEventConfig] = useState({ status: "open" });
@@ -78,10 +88,10 @@ export default function CallerPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F6F9FF] pb-10">
+    <DashboardShell>
       <Navbar />
 
-      <div className="mx-auto max-w-7xl px-6 pt-8 lg:px-10">
+      <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-10">
 
 
         {eventConfig.status === "closed" && (
@@ -98,32 +108,26 @@ export default function CallerPage() {
 
         {/* HEADER */}
         <div className="mb-8">
-
-          <p className="text-sm font-bold text-violet-600">
-            E-Voting OSIS
-          </p>
-
-          <h1 className="mt-1 text-4xl font-bold text-slate-900">
-            Meja Pemanggil
-          </h1>
-
-          <p className="mt-2 text-slate-500">
-            Panggil siswa dalam antrian dan arahkan ke bilik
-            yang tersedia.
-          </p>
+          <DashboardHero
+            theme="coral"
+            emoji="📣"
+            badge={`${queue.length} siswa menunggu`}
+            title="Meja pemanggil"
+            description="Panggil siswa dari antrean dan arahkan ke bilik yang kosong."
+          />
         </div>
 
         {/* AREA UTAMA */}
-        <div className="grid grid-cols-[1fr_380px] gap-6">
+        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
 
           {/* =========================
               ANTRIAN PEMILIH
           ========================== */}
           <section
             className="
-              rounded-3xl border
-              border-slate-200
-              bg-white p-6 shadow-sm
+              rounded-[1.75rem]
+              ring-1 ring-violet-100
+              bg-white p-6 shadow-md
             "
           >
             <div className="flex items-center justify-between">
@@ -238,9 +242,9 @@ export default function CallerPage() {
           ========================== */}
           <section
             className="
-              rounded-3xl border
-              border-slate-200
-              bg-white p-6 shadow-sm
+              rounded-[1.75rem]
+              ring-1 ring-violet-100
+              bg-white p-6 shadow-md
             "
           >
             <div>
@@ -512,6 +516,6 @@ export default function CallerPage() {
 
         </div>
       </div>
-    </main>
+    </DashboardShell>
   );
 }

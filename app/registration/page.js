@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Navbar from "@/components/Navbar";
+import AuthGuard from "@/components/AuthGuard";
+import SearchSelect from "@/components/SearchSelect";
+import { DashboardHero, DashboardShell } from "@/components/Dashboard";
 
 import {
   addToQueue,
@@ -18,6 +21,14 @@ import {
 } from "@/lib/votingStorage";
 
 export default function RegistrationPage() {
+  return (
+    <AuthGuard allowedRoles={["ketua", "registrator"]}>
+      <RegistrationPageContent />
+    </AuthGuard>
+  );
+}
+
+function RegistrationPageContent() {
   const [activeTab, setActiveTab] = useState("siswa"); // "siswa" | "guru"
   const [selectedClass, setSelectedClass] = useState("");
   const [search, setSearch] = useState("");
@@ -178,10 +189,10 @@ export default function RegistrationPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F6F9FF] pb-12">
+    <DashboardShell>
       <Navbar />
 
-      <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-10">
+      <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-10">
         {/* EVENT CLOSED WARNING */}
         {eventConfig.status === "closed" && (
           <div className="mb-6 flex items-center justify-between rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800 shadow-sm">
@@ -198,52 +209,42 @@ export default function RegistrationPage() {
         )}
 
         {/* HEADER SECTION */}
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-violet-700">
-                <span className="h-2 w-2 rounded-full bg-violet-600 animate-pulse"></span>
-                E-Voting OSIS
-              </span>
-
-              {/* API STATUS BADGE */}
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 border border-emerald-200">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                Aktif ({students.length} Siswa • {teachers.length} Guru)
-              </span>
-            </div>
-
-            <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-              Meja Pendaftaran
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Pilih pemilih (Siswa atau Dewan Guru) dan daftarkan ke dalam antrian pemilihan.
-            </p>
-          </div>
-
-          {/* SINKRONISASI ULANG BUTTON */}
-          <button
-            onClick={() => fetchSchoolData(true)}
-            disabled={isLoadingApi}
-            title="Sinkronkan ulang data dari server sekolah"
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-violet-300 disabled:opacity-50"
-          >
-            <svg
-              className={`h-4 w-4 text-violet-600 ${isLoadingApi ? "animate-spin" : ""}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            {isLoadingApi ? "Menyinkronkan..." : "Sinkronkan Data"}
-          </button>
+        <div className="mb-8">
+          <DashboardHero
+            theme="mint"
+            emoji="📝"
+            badge={
+              <>
+                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-600" />
+                Aktif · {students.length} siswa · {teachers.length} guru
+              </>
+            }
+            title="Meja pendaftaran"
+            description="Pilih pemilih (siswa atau guru) lalu masukkan ke antrean pemilihan."
+            aside={
+              <button
+                onClick={() => fetchSchoolData(true)}
+                disabled={isLoadingApi}
+                title="Sinkronkan ulang data dari server sekolah"
+                className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-xs font-bold text-violet-700 shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 disabled:opacity-60"
+              >
+                <svg
+                  className={`h-4 w-4 ${isLoadingApi ? "animate-spin" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                {isLoadingApi ? "Menyinkronkan..." : "Sinkronkan data"}
+              </button>
+            }
+          />
         </div>
 
         {syncError && (
@@ -256,7 +257,7 @@ export default function RegistrationPage() {
           {/* ================================= */}
           {/* KOLOM KIRI: DAFTAR PEMILIH */}
           {/* ================================= */}
-          <section className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
+          <section className="rounded-[1.75rem] bg-white p-6 shadow-md ring-1 ring-violet-100">
             {/* TAB SWITCHER: SISWA VS GURU */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2 rounded-2xl bg-slate-100 p-1">
@@ -327,21 +328,22 @@ export default function RegistrationPage() {
                     <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-700">
                       Pilih Kelas
                     </label>
-                    <select
+                    <SearchSelect
+                      options={classes.map((className) => ({
+                        value: className,
+                        label: className,
+                        sublabel: classCounts[className] ? `${classCounts[className]} siswa` : undefined,
+                      }))}
                       value={selectedClass}
-                      onChange={(e) => {
-                        setSelectedClass(e.target.value);
+                      onChange={(value) => {
+                        setSelectedClass(value);
                         setSearch("");
                       }}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
-                    >
-                      <option value="">-- Pilih Kelas --</option>
-                      {classes.map((className) => (
-                        <option key={className} value={className}>
-                          {className} {classCounts[className] ? `(${classCounts[className]} siswa)` : ""}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="-- Pilih Kelas --"
+                      searchPlaceholder="Cari kelas..."
+                      emptyText="Kelas tidak ditemukan."
+                      loading={isLoadingApi && classes.length === 0}
+                    />
                   </div>
 
                   <div>
@@ -517,7 +519,7 @@ export default function RegistrationPage() {
           {/* ================================= */}
           {/* KOLOM KANAN: ANTRIAN PEMILIH */}
           {/* ================================= */}
-          <section className="h-fit rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
+          <section className="h-fit rounded-[1.75rem] bg-white p-6 shadow-md ring-1 ring-violet-100">
             {/* HEADER ANTRIAN */}
             <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
               <div>
@@ -596,6 +598,6 @@ export default function RegistrationPage() {
           </section>
         </div>
       </div>
-    </main>
+    </DashboardShell>
   );
 }

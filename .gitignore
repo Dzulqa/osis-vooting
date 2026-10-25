@@ -42,3 +42,15 @@ next-env.d.ts
 
 # codegraph
 .codegraph/
+
+!.env.example
+
+# uploads & local artifacts
+/.uploads/
+gcm-diagnose.log
+
+# never commit key material
+*.pub
+id_rsa*
+id_ed25519*
+bamzky707@gmail.com*

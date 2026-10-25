@@ -1,8 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Aplikasi selalu terang — kanvas lembut */
+  --background: #f7f8fd;
+  --foreground: #1f2a48;
+  color-scheme: light;
 }
 
 @theme {
@@ -10,61 +12,94 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fredoka);
+  --font-body: var(--font-jakarta);
 
-  --color-brand: #063fcc;
-  --color-brand-hover: #0432a6;
+  /* Palet pastel pesta demokrasi — lembut di mata */
+  --color-sun: #ffd98a;
+  --color-sun-soft: #fff7e3;
+  --color-coral: #f9a8b8;
+  --color-coral-soft: #ffeef2;
+  --color-mint: #8fdcc4;
+  --color-mint-soft: #e6f8f2;
+  --color-sky: #eef3ff;
+  --color-lilac: #c9c3f5;
+  --color-lilac-soft: #f2f0ff;
+  --color-ink: #1f2a48;
 
-  /* Overriding violet with OSIS Almet Royal Blue #063fcc palette */
-  --color-violet-50: #eff4ff;
-  --color-violet-100: #dbeafe;
-  --color-violet-200: #bfd6fe;
-  --color-violet-300: #93befe;
-  --color-violet-400: #578df8;
-  --color-violet-500: #2566eb;
-  --color-violet-600: #063fcc;
-  --color-violet-700: #0532a6;
-  --color-violet-800: #052782;
-  --color-violet-900: #072163;
-  --color-violet-950: #031138;
+  --color-brand: #5a72d8;
+  --color-brand-hover: #4a60c2;
 
-  /* Harmonizing indigo with OSIS Almet Blue */
-  --color-indigo-50: #eff4ff;
-  --color-indigo-100: #dbeafe;
-  --color-indigo-200: #bfd6fe;
-  --color-indigo-300: #93befe;
-  --color-indigo-400: #578df8;
-  --color-indigo-500: #2566eb;
-  --color-indigo-600: #063fcc;
-  --color-indigo-700: #0532a6;
-  --color-indigo-800: #052782;
-  --color-indigo-900: #072163;
-  --color-indigo-950: #031138;
+  /* Biru almet OSIS versi lembut (periwinkle) */
+  --color-violet-50: #f4f6ff;
+  --color-violet-100: #e7ecfe;
+  --color-violet-200: #d2dcfc;
+  --color-violet-300: #b2c2f7;
+  --color-violet-400: #8ea3ee;
+  --color-violet-500: #7086e3;
+  --color-violet-600: #5a72d8;
+  --color-violet-700: #4a5fbd;
+  --color-violet-800: #3d4e98;
+  --color-violet-900: #333f77;
+  --color-violet-950: #1f264a;
 
-  /* Aliasing purple palette to OSIS Almet Blue */
-  --color-purple-50: #eff4ff;
-  --color-purple-100: #dbeafe;
-  --color-purple-200: #bfd6fe;
-  --color-purple-300: #93befe;
-  --color-purple-400: #578df8;
-  --color-purple-500: #2566eb;
-  --color-purple-600: #063fcc;
-  --color-purple-700: #0532a6;
-  --color-purple-800: #052782;
-  --color-purple-900: #072163;
-  --color-purple-950: #031138;
+  --color-indigo-50: #f4f6ff;
+  --color-indigo-100: #e7ecfe;
+  --color-indigo-200: #d2dcfc;
+  --color-indigo-300: #b2c2f7;
+  --color-indigo-400: #8ea3ee;
+  --color-indigo-500: #7086e3;
+  --color-indigo-600: #5a72d8;
+  --color-indigo-700: #4a5fbd;
+  --color-indigo-800: #3d4e98;
+  --color-indigo-900: #333f77;
+  --color-indigo-950: #1f264a;
+
+  --color-purple-50: #f4f6ff;
+  --color-purple-100: #e7ecfe;
+  --color-purple-200: #d2dcfc;
+  --color-purple-300: #b2c2f7;
+  --color-purple-400: #8ea3ee;
+  --color-purple-500: #7086e3;
+  --color-purple-600: #5a72d8;
+  --color-purple-700: #4a5fbd;
+  --color-purple-800: #3d4e98;
+  --color-purple-900: #333f77;
+  --color-purple-950: #1f264a;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Tailwind v4 membuat button berkursor default; semua yang bisa diklik harus pointer */
+@layer base {
+  a[href],
+  button,
+  summary,
+  select,
+  label[for],
+  [role="button"],
+  [role="tab"],
+  [role="link"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"],
+  input[type="range"] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  input:disabled,
+  select:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-jakarta), Arial, Helvetica, sans-serif;
 }
 
 @keyframes candidateDetailEnter {
@@ -97,4 +132,477 @@ body {
 
 .candidate-detail-exit {
   animation: candidateDetailExit 600ms ease-in-out forwards;
+}
+
+/* ========================================
+   FESTIVE FX (landing & login)
+   ======================================== */
+
+@keyframes fxConfettiFall {
+  0% {
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--drift, 30px), 110vh, 0) rotate(var(--spin, 540deg));
+    opacity: 0.9;
+  }
+}
+
+@keyframes fxSway {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+
+@keyframes fxFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-18px) rotate(8deg); }
+}
+
+@keyframes fxRise {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fxPopIn {
+  0% { opacity: 0; transform: scale(0.85) translateY(20px); }
+  60% { opacity: 1; transform: scale(1.03) translateY(-4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes fxDigitPop {
+  0% { transform: translateY(-40%) scale(0.8); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes fxShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+
+@keyframes fxBallotDrop {
+  0% { transform: translateY(-70px) rotate(-8deg); opacity: 0; }
+  15% { opacity: 1; }
+  55% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  80% { transform: translateY(72px) rotate(0deg); opacity: 1; }
+  81%, 100% { transform: translateY(72px); opacity: 0; }
+}
+
+@keyframes fxBoxBounce {
+  0%, 70%, 100% { transform: scale(1, 1); }
+  76% { transform: scale(1.04, 0.95); }
+  84% { transform: scale(0.98, 1.03); }
+}
+
+@keyframes fxSparkle {
+  0%, 100% { transform: scale(0.4) rotate(0deg); opacity: 0; }
+  50% { transform: scale(1) rotate(90deg); opacity: 1; }
+}
+
+@keyframes fxDraw {
+  from { stroke-dashoffset: 400; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes fxWave {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.fx-confetti {
+  animation: fxConfettiFall var(--dur, 9s) linear var(--delay, 0s) infinite;
+}
+
+.fx-sway {
+  transform-origin: top center;
+  animation: fxSway 3.2s ease-in-out infinite;
+}
+
+.fx-float {
+  animation: fxFloat var(--dur, 6s) ease-in-out var(--delay, 0s) infinite;
+}
+
+.fx-rise {
+  opacity: 0;
+  animation: fxRise 700ms cubic-bezier(0.22, 1, 0.36, 1) var(--delay, 0ms) forwards;
+}
+
+.fx-pop-in {
+  opacity: 0;
+  animation: fxPopIn 650ms cubic-bezier(0.22, 1, 0.36, 1) var(--delay, 0ms) forwards;
+}
+
+.fx-digit {
+  display: inline-block;
+  animation: fxDigitPop 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.fx-shake {
+  animation: fxShake 420ms ease-in-out;
+}
+
+.fx-ballot {
+  animation: fxBallotDrop 3.4s cubic-bezier(0.45, 0, 0.3, 1) infinite;
+}
+
+.fx-box-bounce {
+  transform-origin: bottom center;
+  animation: fxBoxBounce 3.4s ease-in-out infinite;
+}
+
+.fx-sparkle {
+  animation: fxSparkle 2.6s ease-in-out var(--delay, 0s) infinite;
+}
+
+.fx-draw {
+  stroke-dasharray: 400;
+  stroke-dashoffset: 400;
+  animation: fxDraw 1.2s ease-out 600ms forwards;
+}
+
+.fx-wave {
+  animation: fxWave 14s linear infinite;
+}
+
+/* Reveal saat discroll */
+.fx-reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition:
+    opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--delay, 0ms);
+}
+
+.fx-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ========================================
+   BILIK FX — animasi ceria untuk layar bilik
+   ======================================== */
+
+@keyframes fxHandWave {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  10%, 30% { transform: rotate(16deg); }
+  20%, 40% { transform: rotate(-10deg); }
+  50% { transform: rotate(10deg); }
+}
+
+@keyframes fxBounceLetter {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-14px) rotate(-4deg); }
+  55% { transform: translateY(0); }
+  70% { transform: translateY(-4px); }
+}
+
+@keyframes fxWiggle {
+  0%, 100% { transform: rotate(-6deg); }
+  50% { transform: rotate(6deg) scale(1.06); }
+}
+
+@keyframes fxShine {
+  0% { transform: translateX(-120%) skewX(-20deg); }
+  60%, 100% { transform: translateX(260%) skewX(-20deg); }
+}
+
+@keyframes fxNudge {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.02); }
+}
+
+@keyframes fxDot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.35; }
+  40% { transform: translateY(-6px); opacity: 1; }
+}
+
+@keyframes fxBurst {
+  0% { transform: translate(-50%, -50%) rotate(0deg) scale(0.2); opacity: 1; }
+  70% { opacity: 1; }
+  100% {
+    transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) rotate(var(--spin, 360deg)) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes fxRing {
+  0% { transform: scale(0.6); opacity: 0.7; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes fxProgress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes fxCheckDraw {
+  from { stroke-dashoffset: 60; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes fxBalloon {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-22px) rotate(3deg); }
+}
+
+.fx-hand-wave {
+  display: inline-block;
+  transform-origin: 70% 80%;
+  animation: fxHandWave 2.4s ease-in-out infinite;
+}
+
+.fx-bounce-letter {
+  display: inline-block;
+  animation: fxBounceLetter 2.2s ease-in-out var(--delay, 0s) infinite;
+}
+
+.fx-wiggle {
+  animation: fxWiggle 2.6s ease-in-out var(--delay, 0s) infinite;
+}
+
+.fx-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.fx-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: fxShine 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.fx-nudge {
+  animation: fxNudge 1.8s ease-in-out infinite;
+}
+
+.fx-dot {
+  display: inline-block;
+  animation: fxDot 1.2s ease-in-out var(--delay, 0s) infinite;
+}
+
+.fx-burst {
+  animation: fxBurst 1.4s cubic-bezier(0.15, 0.8, 0.3, 1) var(--delay, 0s) forwards;
+}
+
+.fx-ring {
+  animation: fxRing 2.2s ease-out var(--delay, 0s) infinite;
+}
+
+.fx-progress {
+  transform-origin: left center;
+  animation: fxProgress var(--dur, 3s) linear forwards;
+}
+
+.fx-check {
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: fxCheckDraw 600ms cubic-bezier(0.65, 0, 0.35, 1) 350ms forwards;
+}
+
+.fx-balloon {
+  animation: fxBalloon var(--dur, 6s) ease-in-out var(--delay, 0s) infinite;
+}
+
+/* ========================================
+   HITUNG SUARA — panggung penghitungan
+   ======================================== */
+
+@keyframes fxPlusOne {
+  0% { opacity: 0; transform: translate(-50%, 6px) scale(0.6); }
+  20% { opacity: 1; transform: translate(-50%, -6px) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -46px) scale(1); }
+}
+
+@keyframes fxBump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+@keyframes fxCountdown {
+  0% { opacity: 0; transform: scale(2.4); filter: blur(6px); }
+  25% { opacity: 1; transform: scale(1); filter: blur(0); }
+  80% { opacity: 1; transform: scale(0.94); }
+  100% { opacity: 0; transform: scale(0.6); }
+}
+
+@keyframes fxCrownDrop {
+  0% { opacity: 0; transform: translate(-50%, -140px) rotate(-25deg) scale(0.6); }
+  55% { opacity: 1; transform: translate(-50%, 6px) rotate(8deg) scale(1.1); }
+  75% { transform: translate(-50%, -8px) rotate(-4deg) scale(1); }
+  100% { opacity: 1; transform: translate(-50%, 0) rotate(0deg) scale(1); }
+}
+
+@keyframes fxRays {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes fxGlowPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 217, 138, 0.55), 0 30px 80px -20px rgba(255, 217, 138, 0.6); }
+  50% { box-shadow: 0 0 0 14px rgba(255, 217, 138, 0), 0 30px 90px -10px rgba(255, 217, 138, 0.8); }
+}
+
+@keyframes fxSlam {
+  0% { opacity: 0; transform: scale(2.2) rotate(-6deg); letter-spacing: 0.4em; }
+  60% { opacity: 1; transform: scale(0.95) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes fxDrumroll {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-2px) rotate(-1deg); }
+  75% { transform: translateX(2px) rotate(1deg); }
+}
+
+.fx-plus-one {
+  animation: fxPlusOne 900ms ease-out forwards;
+}
+
+.fx-bump {
+  animation: fxBump 320ms ease-out;
+}
+
+.fx-countdown {
+  animation: fxCountdown 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.fx-crown-drop {
+  animation: fxCrownDrop 1s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+}
+
+.fx-rays {
+  animation: fxRays 14s linear infinite;
+}
+
+.fx-glow-pulse {
+  animation: fxGlowPulse 2.2s ease-in-out infinite;
+}
+
+.fx-slam {
+  animation: fxSlam 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.fx-drumroll {
+  animation: fxDrumroll 120ms linear infinite;
+}
+
+/* Panel SearchSelect: muncul dari arah tombol */
+@keyframes searchSelectDown {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes searchSelectUp {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ========================================
+   FLIP CARD (paslon di landing)
+   ======================================== */
+
+.flip-card {
+  perspective: 1400px;
+}
+
+.flip-inner {
+  display: grid;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 750ms cubic-bezier(0.34, 1.3, 0.5, 1);
+}
+
+/* Kedua sisi menempati sel grid yang sama → tinggi kartu = sisi tertinggi */
+.flip-face {
+  grid-area: 1 / 1;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.flip-back {
+  transform: rotateY(180deg);
+}
+
+@media (hover: hover) {
+  .flip-card:hover .flip-inner {
+    transform: rotateY(180deg);
+  }
+}
+
+.flip-card:focus-within .flip-inner,
+.flip-card.is-flipped .flip-inner {
+  transform: rotateY(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-inner {
+    transition: none;
+  }
+
+  .fx-rays,
+  .fx-glow-pulse,
+  .fx-drumroll,
+  .fx-bump,
+  .fx-plus-one,
+  .fx-hand-wave,
+  .fx-bounce-letter,
+  .fx-wiggle,
+  .fx-shine::after,
+  .fx-nudge,
+  .fx-dot,
+  .fx-ring,
+  .fx-balloon,
+  .fx-confetti,
+  .fx-sway,
+  .fx-float,
+  .fx-ballot,
+  .fx-box-bounce,
+  .fx-sparkle,
+  .fx-wave,
+  .fx-digit,
+  .fx-shake {
+    animation: none !important;
+  }
+
+  .fx-confetti {
+    display: none;
+  }
+
+  .fx-rise,
+  .fx-pop-in,
+  .fx-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .fx-draw,
+  .fx-check {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+
+  .fx-burst {
+    display: none;
+  }
 }

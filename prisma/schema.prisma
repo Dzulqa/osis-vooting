@@ -1,0 +1,347 @@
+// E-Voting OSIS SMK Al-Amanah — voting database.
+// Everything election-related is scoped by electionId (one Election per academic year).
+// See docs/backend-implementation-plan.md for the design rationale.
+
+generator client {
+  provider      = "prisma-client-js"
+  // CI builds on Ubuntu; the VPS loads the engine for its own OS (Debian/Ubuntu, OpenSSL 3).
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+// ---------------------------------------------------------------- enums
+
+enum UserRole {
+  SUPERADMIN
+  KETUA
+  REGISTRATOR
+  CALLER
+  SAKSI
+}
+
+enum ElectionKind {
+  REHEARSAL
+  REAL
+}
+
+enum ForceState {
+  NONE
+  OPEN
+  CLOSED
+}
+
+enum VoterType {
+  STUDENT
+  TEACHER
+}
+
+// One row per voter per election: queue -> booth -> voted.
+enum SessionStatus {
+  REGISTERED
+  ASSIGNED
+  ACTIVE
+  VOTED
+  CANCELLED
+}
+
+enum ActorType {
+  USER
+  BOOTH
+  SYSTEM
+}
+
+// ---------------------------------------------------------------- auth
+
+model User {
+  id                 Int       @id @default(autoincrement())
+  username           String    @unique @db.VarChar(64)
+  passwordHash       String    @db.VarChar(255)
+  name               String    @db.VarChar(150)
+  // Global role is only meaningful for SUPERADMIN; everyone else gets a role per election via ElectionMember.
+  isSuperadmin       Boolean   @default(false)
+  active             Boolean   @default(true)
+  mustChangePassword Boolean   @default(true)
+  failedLoginCount   Int       @default(0)
+  lockedUntil        DateTime?
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  memberships ElectionMember[]
+  sessions    AuthSession[]
+}
+
+model ElectionMember {
+  id         Int      @id @default(autoincrement())
+  electionId Int
+  userId     Int
+  role       UserRole
+  createdAt  DateTime @default(now())
+
+  election Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([electionId, userId])
+  @@index([userId])
+}
+
+model AuthSession {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  tokenHash String    @unique @db.Char(64)
+  expiresAt DateTime
+  revokedAt DateTime?
+  ip        String?   @db.VarChar(64)
+  userAgent String?   @db.VarChar(255)
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------- election
+
+model Election {
+  id                Int          @id @default(autoincrement())
+  name              String       @db.VarChar(200)
+  academicYearLabel String       @db.VarChar(20) // e.g. "2026/2027"
+  eraportYearId     Int? // years.id in e-raport, used by the DPT import
+  kind              ElectionKind @default(REAL)
+
+  scheduledStart DateTime?
+  scheduledEnd   DateTime?
+  forceState     ForceState @default(NONE)
+  graceMinutes   Int        @default(5)
+
+  resultsRevealedAt DateTime?
+  resultsRevealedBy Int?
+  publicResults     Boolean   @default(false)
+  finalizedAt       DateTime?
+  finalizedBy       Int?
+  resultsSnapshot   Json?
+
+  // 1 for the current election, NULL otherwise. UNIQUE lets MySQL guarantee a single current election.
+  currentFlag Int? @unique
+
+  ketuaName  String? @db.VarChar(150)
+  ketuaNis   String? @db.VarChar(30)
+  ketuaClass String? @db.VarChar(50)
+  ketuaTitle String? @db.VarChar(150)
+
+  // Bumped in the same transaction as every queue/booth/config change; drives SSE updates.
+  revision  Int      @default(0)
+  createdBy Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members    ElectionMember[]
+  candidates Candidate[]
+  voters     Voter[]
+  classrooms Classroom[]
+  sessions   VotingSession[]
+  booths     Booth[]
+  ballots    Ballot[]
+  audits     AuditLog[]
+}
+
+model Candidate {
+  id         Int      @id @default(autoincrement())
+  electionId Int
+  number     Int
+  chairName  String   @db.VarChar(150)
+  viceName   String   @db.VarChar(150)
+  chairNis   String?  @db.VarChar(30)
+  viceNis    String?  @db.VarChar(30)
+  slogan     String?  @db.VarChar(255)
+  vision     String?  @db.Text
+  missions   Json // string[]
+  programs   Json // string[]
+  photoPath  String?  @db.VarChar(255)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  election Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  ballots  Ballot[]
+
+  @@unique([electionId, number])
+}
+
+// ---------------------------------------------------------------- master data snapshot
+// Field names mirror the sinar/e-raport service API (GET /master/students, /master/teachers,
+// /master/classrooms) so the import is a straight copy. See eraport-alamanah/docs/external_api_spec.md.
+// Snapshot = frozen at import time; later changes in e-raport never alter an election in progress.
+
+// Mirrors one item of GET /master/classrooms.
+model Classroom {
+  id                   Int      @id @default(autoincrement())
+  electionId           Int
+  sourceId             Int // classrooms.id in e-raport
+  name                 String   @db.VarChar(80)
+  level                Int?
+  yearId               Int?
+  yearName             String?  @db.VarChar(20)
+  studyLevel           String?  @db.VarChar(20)
+  studyMajor           String?  @db.VarChar(150)
+  competency           String?  @db.VarChar(150)
+  homeroomTeacher      String?  @db.VarChar(150)
+  homeroomTeacherEmail String?  @db.VarChar(150)
+  active               Boolean  @default(true)
+  studentCount         Int?
+  syncedAt             DateTime @default(now())
+
+  election Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+
+  @@unique([electionId, sourceId])
+  @@index([electionId, name])
+}
+
+// DPT snapshot — one row per eligible voter. STUDENT rows mirror GET /master/students,
+// TEACHER rows mirror GET /master/teachers. `raw` keeps the untouched API item so fields the
+// docs do not list are never lost.
+model Voter {
+  id         Int       @id @default(autoincrement())
+  electionId Int
+  type       VoterType
+  // Identity inside the election: nis for students, code for teachers.
+  externalId String    @db.VarChar(50)
+
+  // students
+  nis                String? @db.VarChar(50)
+  nisn               String? @db.VarChar(30)
+  classroom          String? @db.VarChar(80) // classroom name, as returned by the API
+  classroomId        Int?
+  level              Int?
+  year               String? @db.VarChar(20)
+  yearId             Int?
+  competencyId       Int?
+  competencyName     String? @db.VarChar(150)
+  graduated          Boolean @default(false)
+  isPondok           Boolean @default(false)
+
+  // teachers
+  code      String? @db.VarChar(50)
+  lastStudy String? @db.VarChar(100)
+
+  // shared
+  name   String  @db.VarChar(200)
+  gender String? @db.VarChar(5)
+  email  String? @db.VarChar(150)
+  phone  String? @db.VarChar(40)
+  active Boolean @default(true) // `active` from the API at sync time
+  raw    Json?
+
+  // Our own switch: false = excluded from this election (graduated, removed upstream, manual exclusion).
+  eligible Boolean  @default(true)
+  source   String   @default("ERAPORT") @db.VarChar(20) // ERAPORT | CSV | MANUAL
+  syncedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  election Election       @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  session  VotingSession?
+
+  @@unique([electionId, type, externalId])
+  @@index([electionId, classroomId, name])
+  @@index([electionId, name])
+}
+
+// ---------------------------------------------------------------- voting flow
+
+model VotingSession {
+  id           Int           @id @default(autoincrement())
+  electionId   Int
+  // UNIQUE: a voter belongs to exactly one election, so this is also unique per (election, voter).
+  // It is the race-safe guard against double registration and double voting.
+  voterId      Int           @unique
+  status       SessionStatus @default(REGISTERED)
+  queuedAt     DateTime      @default(now())
+  queuedBy     Int?
+  boothId      Int?
+  assignedAt   DateTime?
+  assignedBy   Int?
+  activatedAt  DateTime?
+  activatedBy  String?       @db.VarChar(40) // "USER:12" or "BOOTH:3"
+  votedAt      DateTime?
+  cancelledAt  DateTime?
+  cancelReason String?       @db.VarChar(255)
+  // Idempotency key of the vote request. Makes a retried vote return the original success.
+  castKey      String?       @db.VarChar(64)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  election Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  voter    Voter    @relation(fields: [voterId], references: [id])
+  booth    Booth?   @relation("SessionBooth", fields: [boothId], references: [id])
+  occupies Booth?   @relation("BoothCurrentSession")
+
+  @@index([electionId, status, queuedAt])
+  @@index([boothId])
+}
+
+model Booth {
+  id               Int       @id @default(autoincrement())
+  electionId       Int
+  number           Int
+  label            String?   @db.VarChar(80)
+  active           Boolean   @default(true)
+  // Session currently occupying this booth. UNIQUE: one session can only be in one booth.
+  currentSessionId Int?      @unique
+  pairingCodeHash  String?   @db.Char(64)
+  pairingExpiresAt DateTime?
+  deviceTokenHash  String?   @unique @db.Char(64)
+  pairedAt         DateTime?
+  lastSeenAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  election       Election        @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  currentSession VotingSession?  @relation("BoothCurrentSession", fields: [currentSessionId], references: [id])
+  history        VotingSession[] @relation("SessionBooth")
+
+  @@unique([electionId, number])
+}
+
+// Secret ballot. Deliberately NO voterId / sessionId / boothId, and time is truncated to the hour.
+model Ballot {
+  id          String   @id @default(uuid()) @db.Char(36)
+  electionId  Int
+  candidateId Int
+  castHour    DateTime
+
+  election  Election  @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  candidate Candidate @relation(fields: [candidateId], references: [id])
+
+  @@index([electionId, candidateId])
+}
+
+// ---------------------------------------------------------------- audit
+
+// Append-only. Never store the chosen candidate together with a voter/session id.
+model AuditLog {
+  id         Int       @id @default(autoincrement())
+  electionId Int?
+  actorType  ActorType
+  actorId    Int?
+  actorLabel String?   @db.VarChar(150)
+  action     String    @db.VarChar(60)
+  entityType String?   @db.VarChar(40)
+  entityId   String?   @db.VarChar(40)
+  metadata   Json?
+  ip         String?   @db.VarChar(64)
+  createdAt  DateTime  @default(now())
+  prevHash   String?   @db.Char(64)
+  hash       String?   @db.Char(64)
+
+  election Election? @relation(fields: [electionId], references: [id], onDelete: SetNull)
+
+  @@index([electionId, createdAt])
+  @@index([action])
+}

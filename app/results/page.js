@@ -1,16 +1,23 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import { Confetti } from "@/components/Festive";
+import { DashboardHero, DashboardShell, StatTile } from "@/components/Dashboard";
+import VoteCountShow from "@/components/VoteCountShow";
+import { LockedMetric, LockedNotice } from "@/components/LockedResults";
 import {
+  getAcademicYear,
+  getAuthSession,
   getVotedStudents,
   getVoteSummary,
   getEventConfig,
   getCandidatesList,
   getStudentsList,
   toggleResultRevealed,
+  markResultsCounted,
   subscribeVotingStorage,
 } from "@/lib/votingStorage";
 
@@ -18,6 +25,9 @@ import {
 export default function ResultsPage() {
   const [selectedPaslonId, setSelectedPaslonId] = useState("all");
   const [searchLog, setSearchLog] = useState("");
+  const [isCounting, setIsCounting] = useState(false);
+  const [academicYear, setAcademicYear] = useState("");
+  const [role, setRole] = useState(null);
   const [votedCount, setVotedCount] = useState(0);
   const [candidates, setCandidates] = useState([]);
   const [students, setStudents] = useState([]);
@@ -34,6 +44,8 @@ export default function ResultsPage() {
   function loadResultsData() {
     const config = getEventConfig();
     setEventConfig(config);
+    setAcademicYear(getAcademicYear());
+    setRole(getAuthSession()?.role ?? null);
     const activeCandidates = getCandidatesList();
     setCandidates(activeCandidates);
     const activeStudents = getStudentsList();
@@ -53,6 +65,21 @@ export default function ResultsPage() {
     return subscribeVotingStorage(loadResultsData);
   }, []);
 
+  const closeCounting = useCallback(() => setIsCounting(false), []);
+
+  // Hanya penyelenggara yang boleh menghitung di layar & mengunci hasil
+  const canControl = role === "ketua" || role === "superadmin";
+  // Angka per paslon baru terbuka setelah "Hitung sekarang" selesai
+  const isCounted = Boolean(eventConfig.resultsCountedAt);
+
+  // Peringkat untuk kartu ringkas (urutan kartu tetap mengikuti nomor urut)
+  const rankById = useMemo(() => {
+    const sorted = [...summaryData.candidateStats].sort((a, b) => b.count - a.count);
+    return Object.fromEntries(
+      sorted.map((item) => [item.candidate.id, sorted.findIndex((s) => s.count === item.count) + 1])
+    );
+  }, [summaryData]);
+
   const totalStudents = students.length;
   const participationPercentage =
     totalStudents > 0
@@ -70,144 +97,86 @@ export default function ResultsPage() {
   }, [summaryData, selectedPaslonId]);
 
   return (
-    <main className="min-h-screen bg-[#F6F9FF] pb-16 flex flex-col justify-between">
+    <DashboardShell>
       {/* NAVBAR */}
       <Navbar />
 
-      <div className="mx-auto w-full max-w-7xl px-6 pt-6 lg:px-10 flex-1 flex flex-col justify-center">
+      <div className="mx-auto w-full max-w-7xl px-4 pt-6 sm:px-6 lg:px-10">
         {!eventConfig.isResultRevealed ? (
-          /* TAMPILAN MINIMALIS SAAT TERKUNCI: HANYA NAVBAR + TULISAN SESI PERHITUNGAN BELUM DIBUKA */
-          <div className="my-auto py-20 text-center flex flex-col items-center justify-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-100/90 text-4xl shadow-sm border border-amber-200/80 mb-6">
-              🔒
+          /* TAMPILAN SAAT TERKUNCI */
+          <div className="fx-pop-in relative isolate mx-auto my-12 flex max-w-xl flex-col items-center overflow-hidden rounded-[2rem] bg-white px-6 py-14 text-center shadow-xl ring-1 ring-violet-100">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+              <div className="absolute -left-10 -top-10 h-40 w-40 rounded-full bg-sun/30" />
+              <div className="absolute -bottom-12 -right-8 h-44 w-44 rounded-full bg-coral/20" />
+              <Confetti count={14} />
             </div>
 
-            <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-4 py-1.5 text-xs font-black text-amber-900 uppercase tracking-widest mb-3">
-              KPU OSIS SMK Al Amanah
+            <span className="fx-float flex h-24 w-24 items-center justify-center rounded-[1.75rem] bg-sun-soft text-5xl shadow-inner" style={{ "--dur": "4s" }}>
+              🔒
             </span>
 
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
-              Sesi Perhitungan Belum Dibuka
+            <h1 className="mt-6 font-display text-3xl font-bold text-violet-700 sm:text-4xl">
+              Hasil belum dibuka
             </h1>
 
-            <p className="mt-3 text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
-              Hasil perolehan suara belum direkapitulasi. Menunggu pembukaan sesi perhitungan resmi oleh Penyelenggara (Ketua OSIS).
+            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-600">
+              Penghitungan suara belum dimulai. Hasil akan muncul di sini setelah Ketua OSIS membuka sesi penghitungan.
             </p>
           </div>
         ) : (
           <>
             {/* HEADER SECTION */}
-            <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-              <div>
-                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3.5 py-1 text-xs font-semibold text-emerald-700">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-                  Real-time Sync Database Active
-                </span>
-                <h1 className="mt-3 text-3xl font-black text-slate-900 lg:text-4xl">
-                  Database &amp; Rekapitulasi <span className="text-violet-600">Per Paslon</span>
-                </h1>
-                <p className="mt-2 text-slate-500 text-xs sm:text-sm">
-                  Pantau perolehan suara dan log database transaksi voting secara langsung untuk setiap pasangan calon.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => toggleResultRevealed(false)}
-                  className="cursor-pointer rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
-                >
-                  🔒 Kunci Kembali Hasil Suara
-                </button>
-              </div>
+            <div className="mb-8">
+              <DashboardHero
+                theme="mint"
+                emoji="📊"
+                badge={
+                  <>
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-600" />
+                    Diperbarui langsung
+                  </>
+                }
+                title="Rekapitulasi per paslon"
+                description="Pantau perolehan suara dan log transaksi voting untuk setiap pasangan calon."
+                aside={
+                  canControl && (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsCounting(true)}
+                      disabled={candidates.length === 0}
+                      className="fx-shine rounded-2xl bg-gradient-to-r from-violet-500 to-violet-600 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-violet-400/30 transition hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 disabled:opacity-50"
+                    >
+                      🥁 Hitung sekarang
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleResultRevealed(false)}
+                      className="rounded-2xl bg-white px-5 py-3 text-xs font-bold text-amber-800 shadow-lg transition hover:-translate-y-0.5 hover:bg-sun-soft hover:shadow-xl active:translate-y-0"
+                    >
+                      🔒 Kunci kembali hasil
+                    </button>
+                  </div>
+                  )
+                }
+              />
             </div>
 
 
 
             {/* METRICS / STATS CARDS */}
-            <div className="mb-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {/* Total Votes */}
-              <div className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-slate-500">
-                    Total Suara Masuk
-                  </span>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-                    🗳️
-                  </div>
-                </div>
-                <p className="mt-4 text-3xl font-extrabold text-slate-900">
-                  {summaryData.totalVotes}{" "}
-                  <span className="text-sm font-normal text-slate-400">suara</span>
-                </p>
-                <p className="mt-2 text-xs text-slate-400">
-                  Tercatat otomatis di database
-                </p>
-              </div>
-
-              {/* Leader Paslon */}
-              <div className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-slate-500">
-                    Paslon Unggul
-                  </span>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                    👑
-                  </div>
-                </div>
-                <p className="mt-4 text-2xl font-extrabold text-slate-900 truncate">
-                  {summaryData.leader
-                    ? `Paslon ${summaryData.leader.nomor}`
-                    : "Belum Ada"}
-                </p>
-                <p className="mt-2 text-xs text-slate-400 truncate">
-                  {summaryData.leader
-                    ? `${summaryData.leader.ketua}`
-                    : "Menunggu suara masuk"}
-                </p>
-              </div>
-
-              {/* Total Pemilih */}
-              <div className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-slate-500">
-                    Pemilih Menggunakan Hak
-                  </span>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                    👥
-                  </div>
-                </div>
-                <p className="mt-4 text-3xl font-extrabold text-slate-900">
-                  {votedCount}{" "}
-                  <span className="text-sm font-normal text-slate-400">
-                    / {totalStudents} siswa
-                  </span>
-                </p>
-                <p className="mt-2 text-xs text-slate-400">
-                  Terverifikasi di sistem pendaftaran
-                </p>
-              </div>
-
-              {/* Partisipasi */}
-              <div className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-slate-500">
-                    Tingkat Partisipasi
-                  </span>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                    📊
-                  </div>
-                </div>
-                <p className="mt-4 text-3xl font-extrabold text-slate-900">
-                  {participationPercentage}%
-                </p>
-                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-indigo-600 transition-all duration-500"
-                    style={{ width: `${Math.min(participationPercentage, 100)}%` }}
-                  />
-                </div>
-              </div>
+            <div className="mb-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <StatTile icon="🗳️" label="Total suara masuk" value={summaryData.totalVotes} unit="suara" note="Tercatat otomatis" color="violet" />
+              <StatTile
+                icon="👑"
+                label="Paslon unggul"
+                value={!isCounted ? "🔒 Terkunci" : summaryData.leader ? `Paslon ${summaryData.leader.nomor}` : "Belum ada"}
+                note={!isCounted ? "Menunggu penghitungan" : summaryData.leader ? summaryData.leader.ketua : "Menunggu suara masuk"}
+                color="sun"
+                delay={80}
+              />
+              <StatTile icon="👥" label="Sudah memilih" value={votedCount} unit={`/ ${totalStudents} siswa`} note="Terverifikasi di pendaftaran" color="mint" delay={160} />
+              <StatTile icon="📊" label="Tingkat partisipasi" value={`${participationPercentage}%`} note="Dari total daftar pemilih" color="coral" delay={240} />
             </div>
 
             {/* TAB FILTER PASLON */}
@@ -217,8 +186,8 @@ export default function ResultsPage() {
                 onClick={() => setSelectedPaslonId("all")}
                 className={`cursor-pointer rounded-2xl px-5 py-2.5 text-sm font-bold transition ${
                   selectedPaslonId === "all"
-                    ? "bg-violet-600 text-white shadow-md shadow-violet-200"
-                    : "bg-white text-slate-600 hover:bg-violet-50"
+                    ? "-translate-y-0.5 bg-violet-600 text-white shadow-lg shadow-violet-400/25"
+                    : "bg-white text-slate-600 shadow-sm hover:-translate-y-0.5 hover:bg-violet-50"
                 }`}
               >
                 Semua Paslon ({candidates.length})
@@ -236,20 +205,125 @@ export default function ResultsPage() {
                     onClick={() => setSelectedPaslonId(String(cand.id))}
                     className={`cursor-pointer rounded-2xl px-5 py-2.5 text-sm font-bold transition ${
                       isSelected
-                        ? "bg-violet-600 text-white shadow-md shadow-violet-200"
-                        : "bg-white text-slate-600 hover:bg-violet-50"
+                        ? "-translate-y-0.5 bg-violet-600 text-white shadow-lg shadow-violet-400/25"
+                        : "bg-white text-slate-600 shadow-sm hover:-translate-y-0.5 hover:bg-violet-50"
                     }`}
                   >
-                    Paslon {cand.nomor} — {cand.ketua.split(" ")[0]} (
-                    {candStat?.count ?? 0} Suara)
+                    Paslon {cand.nomor} — {cand.ketua.split(" ")[0]}
+                    {isCounted && ` (${candStat?.count ?? 0} Suara)`}
                   </button>
                 );
               })}
             </div>
 
-            {/* SECTION DATABASE PER PASLON */}
+            {!isCounted && candidates.length > 0 && (
+              <LockedNotice
+                className="mb-8"
+                action={
+                  canControl && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCounting(true)}
+                      className="fx-shine shrink-0 rounded-2xl bg-gradient-to-r from-violet-500 to-violet-600 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-violet-400/30 transition hover:-translate-y-0.5"
+                    >
+                      🥁 Hitung sekarang
+                    </button>
+                  )
+                }
+              />
+            )}
+
+            {/* SEMUA PASLON — kartu ringkas, hanya metrik */}
+            {selectedPaslonId === "all" && (
+              <>
+                {candidates.length === 0 ? (
+                  <div className="rounded-[1.75rem] border-[3px] border-dashed border-violet-200 bg-white/70 py-14 text-center">
+                    <p className="text-4xl">🎈</p>
+                    <p className="mt-3 font-display text-xl font-semibold text-violet-700">Belum ada pasangan calon</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {summaryData.candidateStats.map(({ candidate, count, percentage }, index) => {
+                      const rank = rankById[candidate.id];
+                      const isLeader = isCounted && summaryData.leader?.id === candidate.id;
+                      return (
+                        <button
+                          key={candidate.id}
+                          type="button"
+                          onClick={() => setSelectedPaslonId(String(candidate.id))}
+                          style={{ "--delay": `${index * 90}ms` }}
+                          className={`fx-pop-in group relative overflow-hidden rounded-[1.75rem] bg-white/95 text-left shadow-[0_14px_40px_-24px_rgba(31,42,72,0.35)] ring-1 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_48px_-24px_rgba(74,95,189,0.45)] ${
+                            isLeader ? "ring-2 ring-sun" : "ring-slate-200/70"
+                          }`}
+                        >
+                          <div className="flex items-center gap-4 p-5">
+                            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-violet-50 ring-1 ring-violet-100">
+                              {candidate.foto && (
+                                <img src={candidate.foto} alt={candidate.ketua} className="h-full w-full object-cover object-top" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="rounded-lg bg-violet-100 px-2 py-0.5 text-[11px] font-bold text-violet-700">
+                                  Paslon {candidate.nomor}
+                                </span>
+                                {isLeader && (
+                                  <span className="rounded-lg bg-sun-soft px-2 py-0.5 text-[11px] font-bold text-amber-800 ring-1 ring-amber-200">
+                                    👑 Unggul
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 truncate text-sm font-bold text-ink">
+                                {candidate.ketua.split(" ")[0]} &amp; {candidate.wakil.split(" ")[0]}
+                              </p>
+                            </div>
+                            <span
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-display text-sm font-bold ${
+                                isCounted && rank === 1 && count > 0 ? "bg-sun text-ink" : "bg-slate-100 text-slate-500"
+                              }`}
+                              title={isCounted ? "Peringkat" : "Belum dihitung"}
+                            >
+                              {isCounted ? `#${rank}` : "🔒"}
+                            </span>
+                          </div>
+
+                          <div className="border-t border-slate-100 px-5 pb-5 pt-4">
+                            {!isCounted ? (
+                              <LockedMetric />
+                            ) : (
+                            <>
+                            <div className="flex items-end justify-between">
+                              <p className="font-display text-4xl font-bold tabular-nums leading-none text-violet-700">
+                                {count}
+                                <span className="ml-1.5 text-sm font-semibold text-slate-400">suara</span>
+                              </p>
+                              <p className="text-xl font-bold tabular-nums text-slate-500">{percentage}%</p>
+                            </div>
+                            <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                              <div
+                                className={`h-full rounded-full transition-[width] duration-700 ${
+                                  isLeader ? "bg-gradient-to-r from-sun to-coral" : "bg-gradient-to-r from-violet-300 to-violet-500"
+                                }`}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <p className="mt-3 text-[11px] font-semibold text-slate-400 transition group-hover:text-violet-600">
+                              Lihat log suara →
+                            </p>
+                            </>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* DETAIL PER PASLON */}
             <div className="space-y-10">
-              {displayedStats.map(({ candidate, count, percentage, votesLog }) => {
+              {selectedPaslonId !== "all" && displayedStats.map(({ candidate, count, percentage, votesLog }) => {
                 const filteredLog = votesLog.filter(
                   (v) =>
                     v.id.toLowerCase().includes(searchLog.toLowerCase()) ||
@@ -259,7 +333,7 @@ export default function ResultsPage() {
                 return (
                   <div
                     key={candidate.id}
-                    className="overflow-hidden rounded-3xl border border-violet-100 bg-white shadow-sm"
+                    className="overflow-hidden rounded-[1.75rem] bg-white shadow-md ring-1 ring-violet-100 transition-shadow duration-300 hover:shadow-xl"
                   >
                     {/* CANDIDATE BANNER / HEADER */}
                     <div className="border-b border-violet-50 bg-gradient-to-r from-violet-50/70 via-white to-violet-50/30 p-6 lg:p-8">
@@ -282,7 +356,7 @@ export default function ResultsPage() {
                               <span className="rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-bold text-white">
                                 PASLON {candidate.nomor}
                               </span>
-                              {summaryData.leader?.id === candidate.id && summaryData.totalVotes > 0 && (
+                              {isCounted && summaryData.leader?.id === candidate.id && summaryData.totalVotes > 0 && (
                                 <span className="rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
                                   🏆 Memimpin
                                 </span>
@@ -299,6 +373,11 @@ export default function ResultsPage() {
                         </div>
 
                         {/* Right: Vote Statistics Badge */}
+                        {!isCounted ? (
+                          <div className="w-full shrink-0 rounded-2xl border border-violet-100 bg-white p-5 shadow-sm lg:w-64">
+                            <LockedMetric />
+                          </div>
+                        ) : (
                         <div className="flex shrink-0 flex-col items-start gap-2 rounded-2xl border border-violet-100 bg-white p-5 shadow-sm lg:items-end">
                           <span className="text-xs font-semibold text-slate-400">
                             Total Database Suara Paslon {candidate.nomor}
@@ -319,10 +398,16 @@ export default function ResultsPage() {
                             />
                           </div>
                         </div>
+                        )}
                       </div>
                     </div>
 
                     {/* DATABASE TABLE FOR THIS PASLON */}
+                    {!isCounted ? (
+                      <div className="p-6 lg:p-8">
+                        <LockedNotice compact />
+                      </div>
+                    ) : (
                     <div className="p-6 lg:p-8">
                       <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                         <div>
@@ -407,6 +492,7 @@ export default function ResultsPage() {
                         </div>
                       )}
                     </div>
+                    )}
                   </div>
                 );
               })}
@@ -415,6 +501,14 @@ export default function ResultsPage() {
         )}
       </div>
 
-    </main>
+      {isCounting && canControl && eventConfig.isResultRevealed && (
+        <VoteCountShow
+          candidateStats={summaryData.candidateStats}
+          academicYear={academicYear}
+          onClose={closeCounting}
+          onRevealed={markResultsCounted}
+        />
+      )}
+    </DashboardShell>
   );
 }

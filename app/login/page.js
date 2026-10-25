@@ -1,301 +1,389 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import AuthShell, { ShellLink } from "@/components/AuthShell";
+import { BallotBox, FESTIVE_COLORS } from "@/components/Festive";
 import {
   loginUser,
   getAuthSession,
-  getAuthCreds,
+  getHomePathForRole,
+  getBooths,
+  getBoothSession,
+  isBoothSessionValid,
+  loginBooth,
   subscribeVotingStorage,
 } from "@/lib/votingStorage";
+
+const CODE_LENGTH = 6;
+
+const INPUT_CLASS =
+  "w-full rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get("redirect") || "";
 
-  const [roleTab, setRoleTab] = useState("superadmin"); // 'superadmin' | 'ketua'
+  const requestedBooth = searchParams.get("booth") || "";
+  const codeInputRef = useRef(null);
+
+  // "akun" = staf (username + password), "bilik" = perangkat bilik (kode akses)
+  const [mode, setMode] = useState(
+    searchParams.get("mode") === "bilik" || requestedBooth ? "bilik" : "akun"
+  );
+  const [booths, setBooths] = useState([]);
+  const [boothId, setBoothId] = useState(requestedBooth);
+  const [accessCode, setAccessCode] = useState("");
+  const [isCodeFocused, setIsCodeFocused] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [creds, setCreds] = useState({
-    superadmin: { username: "superadmin", password: "admin123" },
-    ketua: { username: "ketua", password: "ketua123" },
-  });
+  const [errorCount, setErrorCount] = useState(0);
+  const [status, setStatus] = useState("idle"); // idle | loading | success
 
-  function checkExistingSession() {
-    const session = getAuthSession();
-    if (session) {
-      if (redirectPath) {
-        router.push(redirectPath);
-      } else if (session.role === "superadmin") {
-        router.push("/superadmin");
-      } else {
-        router.push("/ketua");
-      }
-    }
+  function redirectAfterLogin(session) {
+    router.push(redirectPath || getHomePathForRole(session.role));
   }
 
   useEffect(() => {
-    checkExistingSession();
-    setCreds(getAuthCreds());
-    return subscribeVotingStorage(() => {
-      setCreds(getAuthCreds());
-    });
-  }, [redirectPath]);
-
-  function handleQuickFill(selectedRole) {
-    setRoleTab(selectedRole);
-    if (selectedRole === "superadmin") {
-      setUsername(creds.superadmin.username);
-      setPassword(creds.superadmin.password);
-    } else {
-      setUsername(creds.ketua.username);
-      setPassword(creds.ketua.password);
+    // Tab bilik tetap terbuka walau browser ini sedang login sebagai staf
+    const session = getAuthSession();
+    if (session && mode === "akun") {
+      redirectAfterLogin(session);
+      return;
     }
+
+    // Perangkat bilik yang sudah aktif langsung diarahkan ke biliknya
+    const boothSession = getBoothSession();
+    if (
+      boothSession &&
+      isBoothSessionValid(boothSession.boothId) &&
+      (!requestedBooth || Number(requestedBooth) === boothSession.boothId)
+    ) {
+      router.replace(`/booth/${boothSession.boothId}`);
+      return;
+    }
+
+    function loadBooths() {
+      setBooths(getBooths());
+    }
+
+    loadBooths();
+    return subscribeVotingStorage(loadBooths);
+  }, [redirectPath, requestedBooth, mode]);
+
+  function switchMode(next) {
+    setMode(next);
     setErrorMessage("");
+  }
+
+  function handleSelectBooth(id) {
+    setBoothId(String(id));
+    setErrorMessage("");
+    codeInputRef.current?.focus();
+  }
+
+  function handleBoothSubmit(e) {
+    e.preventDefault();
+
+    if (!boothId) {
+      showError("Pilih nomor bilik terlebih dahulu.");
+      return;
+    }
+
+    if (accessCode.length !== CODE_LENGTH) {
+      showError(`Kode akses terdiri dari ${CODE_LENGTH} digit.`);
+      return;
+    }
+
+    setStatus("loading");
+
+    const res = loginBooth(boothId, accessCode);
+
+    if (res.success) {
+      setErrorMessage("");
+      setStatus("success");
+      router.push(`/booth/${res.session.boothId}`);
+    } else {
+      setStatus("idle");
+      setAccessCode("");
+      showError(`${res.message} Minta kode yang benar ke Superadmin.`);
+    }
+  }
+
+  function showError(message) {
+    setErrorMessage(message);
+    setErrorCount((count) => count + 1);
   }
 
   function handleSubmit(e) {
     e.preventDefault();
-    setErrorMessage("");
 
     if (!username.trim() || !password.trim()) {
-      setErrorMessage("Silakan isi Username dan Password terlebih dahulu.");
+      showError("Isi username dan password terlebih dahulu.");
       return;
     }
 
-    setIsLoading(true);
+    setStatus("loading");
 
-    // Simulate short network latency for polished UX
-    setTimeout(() => {
-      const res = loginUser(username, password, roleTab);
+    // Peran ditentukan dari akun, bukan dari pilihan di form
+    const res = loginUser(username, password);
 
-      if (res.success) {
-        if (redirectPath) {
-          router.push(redirectPath);
-        } else if (res.session.role === "superadmin") {
-          router.push("/superadmin");
-        } else {
-          router.push("/ketua");
-        }
-      } else {
-        setIsLoading(false);
-        setErrorMessage(res.message || "Gagal masuk. Periksa kembali username & password Anda.");
-      }
-    }, 400);
+    if (res.success) {
+      setErrorMessage("");
+      setStatus("success");
+      redirectAfterLogin(res.session);
+    } else {
+      setStatus("idle");
+      setPassword("");
+      showError("Username atau password salah. Periksa lagi lalu coba masuk.");
+    }
   }
 
   return (
-    <div className="w-full max-w-md">
-      {/* CARD MAIN */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/20 bg-white/95 p-8 shadow-2xl backdrop-blur-xl">
-        
-        {/* LOGO & HEADER */}
-        <div className="flex flex-col items-center text-center">
-          <div className="flex items-center gap-3">
-            <img
-              src="/logo/alamanah.png"
-              alt="Logo Sekolah"
-              className="h-12 w-12 object-contain"
-            />
-            <div className="h-8 w-px bg-slate-200" />
-            <img
-              src="/logo/osis.png"
-              alt="Logo OSIS"
-              className="h-14 w-14 object-contain"
-            />
-          </div>
-
-          <h1 className="mt-4 text-2xl font-black tracking-tight text-slate-900">
-            Portal Login Resmi
-          </h1>
-          <p className="mt-1 text-xs text-slate-500 font-medium">
-            Khusus <span className="font-bold text-violet-700">Ketua OSIS</span> &amp; <span className="font-bold text-slate-800">Superadmin</span> E-Voting
-          </p>
-        </div>
-
-        {/* ROLE TABS */}
-        <div className="mt-6 flex rounded-2xl bg-slate-100/80 p-1.5 border border-slate-200/60">
+    <AuthShell
+      icon={mode === "bilik" ? "🗳️" : "🔐"}
+      title={mode === "bilik" ? "Aktifkan bilik suara" : "Masuk ke E-Voting"}
+      subtitle={
+        mode === "bilik"
+          ? "Pilih nomor bilik di perangkat ini, lalu masukkan kode akses dari Superadmin."
+          : "Gunakan akun yang diberikan panitia. Kamu akan diarahkan ke halaman sesuai akunmu."
+      }
+      footer={<ShellLink href="/">← Beranda</ShellLink>}
+    >
+      {/* PILIH JENIS LOGIN */}
+      <div role="tablist" className="mt-6 grid grid-cols-2 gap-1.5 rounded-2xl bg-sky p-1.5">
+        {[
+          ["akun", "🔐 Akun panitia"],
+          ["bilik", "🗳️ Bilik suara"],
+        ].map(([key, label]) => (
           <button
+            key={key}
             type="button"
-            onClick={() => {
-              setRoleTab("superadmin");
-              setErrorMessage("");
-            }}
-            className={`flex-1 rounded-xl py-2.5 text-xs font-bold transition-all duration-200 ${
-              roleTab === "superadmin"
-                ? "bg-violet-600 text-white shadow-md shadow-violet-300"
-                : "text-slate-600 hover:text-slate-900"
+            role="tab"
+            aria-selected={mode === key}
+            onClick={() => switchMode(key)}
+            className={`rounded-xl py-2 text-xs font-bold transition ${
+              mode === key ? "bg-white text-violet-700 shadow" : "text-slate-500 hover:text-ink"
             }`}
           >
-            🌟 Superadmin
+            {label}
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setRoleTab("ketua");
-              setErrorMessage("");
-            }}
-            className={`flex-1 rounded-xl py-2.5 text-xs font-bold transition-all duration-200 ${
-              roleTab === "ketua"
-                ? "bg-amber-500 text-white shadow-md shadow-amber-300"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            👑 Ketua OSIS
+        ))}
+      </div>
+
+      {/* ERROR */}
+      {errorMessage && (
+        <div
+          key={errorCount}
+          role="alert"
+          className="fx-shake mt-4 flex items-center justify-between gap-3 rounded-2xl border-2 border-coral/40 bg-coral-soft px-4 py-3 text-xs font-semibold text-rose-700"
+        >
+          <span>⚠️ {errorMessage}</span>
+          <button onClick={() => setErrorMessage("")} className="shrink-0 font-bold underline">
+            Tutup
           </button>
         </div>
+      )}
 
-        {/* ROLE DESCRIPTION BADGE */}
-        <div className="mt-4 rounded-xl bg-slate-50 p-3 border border-slate-100 text-center">
-          {roleTab === "superadmin" ? (
-            <p className="text-[11px] text-slate-600 font-medium">
-              Akses Pembina OSIS &amp; Tim IT: Kelola Master Data, Panitia, Bilik &amp; Reset System.
-            </p>
-          ) : (
-            <p className="text-[11px] text-slate-600 font-medium">
-              Akses Penanggung Jawab: Atur Jadwal Event &amp; Otorisasi Perhitungan Suara.
-            </p>
-          )}
+      {/* FORM AKUN */}
+      {mode === "akun" && (
+      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <div>
+          <label htmlFor="username" className="mb-1.5 block text-xs font-bold text-slate-700">
+            Username
+          </label>
+          <input
+            id="username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Masukkan username"
+            autoComplete="username"
+            autoFocus
+            className={INPUT_CLASS}
+            required
+          />
         </div>
 
-        {/* ERROR NOTIFICATION */}
-        {errorMessage && (
-          <div className="mt-4 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-700 font-semibold flex items-center justify-between">
-            <span>⚠️ {errorMessage}</span>
-            <button
-              onClick={() => setErrorMessage("")}
-              className="text-[10px] underline font-bold"
-            >
-              Tutup
-            </button>
-          </div>
-        )}
-
-        {/* FORM LOGIN */}
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Username
-            </label>
+        <div>
+          <label htmlFor="password" className="mb-1.5 block text-xs font-bold text-slate-700">
+            Password
+          </label>
+          <div className="relative">
             <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder={
-                roleTab === "superadmin"
-                  ? creds.superadmin.username
-                  : creds.ketua.username
-              }
-              className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs text-slate-900 outline-none focus:border-violet-600 focus:ring-2 focus:ring-violet-100 transition"
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+              className={`${INPUT_CLASS} pr-28`}
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-sky hover:text-ink"
+            >
+              {showPassword ? "🙈 Sembunyikan" : "👀 Lihat"}
+            </button>
           </div>
+        </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs text-slate-900 outline-none focus:border-violet-600 focus:ring-2 focus:ring-violet-100 transition pr-10"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600"
-              >
-                {showPassword ? "🙈 Sembunyikan" : "👁️ Lihat"}
-              </button>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={`w-full rounded-2xl py-3.5 text-xs font-extrabold text-white shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
-              roleTab === "superadmin"
-                ? "bg-violet-600 hover:bg-violet-700 shadow-violet-200"
-                : "bg-amber-600 hover:bg-amber-700 shadow-amber-200"
-            } ${isLoading ? "opacity-75 cursor-not-allowed" : "cursor-pointer active:scale-[0.98]"}`}
-          >
-            {isLoading ? (
+        <button
+          type="submit"
+          disabled={status !== "idle"}
+          className="group relative w-full overflow-hidden rounded-2xl bg-violet-600 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-violet-400/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-violet-700 active:translate-y-0 active:scale-[0.98] disabled:opacity-80"
+        >
+          {/* Kilau saat hover */}
+          <span
+            aria-hidden="true"
+            className="absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-white/30 transition-all duration-700 group-hover:left-[120%]"
+          />
+          <span className="relative flex items-center justify-center gap-2">
+            {status === "loading" && (
               <>
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                <span>Memproses Login...</span>
+                Memeriksa akun...
               </>
-            ) : (
-              <span>Masuk Sekarang →</span>
             )}
-          </button>
-        </form>
+            {status === "success" && "Berhasil masuk 🎉"}
+            {status === "idle" && "Masuk"}
+          </span>
+        </button>
+      </form>
+      )}
 
-        {/* DEMO ACCORDION / QUICK FILL FOR TESTING */}
-        <div className="mt-6 border-t border-slate-100 pt-4">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">
-            🔑 Akun Kredensial Demo
-          </p>
-          <div className="mt-2.5 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickFill("superadmin")}
-              className="rounded-xl border border-violet-200 bg-violet-50/60 p-2.5 text-left text-[11px] hover:bg-violet-100 transition"
-            >
-              <p className="font-bold text-violet-900">🌟 Superadmin</p>
-              <p className="text-[10px] text-violet-700 mt-0.5">
-                <code className="font-mono">{creds.superadmin.username}</code> / <code className="font-mono">{creds.superadmin.password}</code>
-              </p>
-            </button>
+      {mode === "bilik" && (
+        <form onSubmit={handleBoothSubmit} className="mt-4 space-y-6">
+          <BallotBox className="mx-auto h-24 w-24" />
 
-            <button
-              type="button"
-              onClick={() => handleQuickFill("ketua")}
-              className="rounded-xl border border-amber-200 bg-amber-50/60 p-2.5 text-left text-[11px] hover:bg-amber-100 transition"
-            >
-              <p className="font-bold text-amber-900">👑 Ketua OSIS</p>
-              <p className="text-[10px] text-amber-800 mt-0.5">
-                <code className="font-mono">{creds.ketua.username}</code> / <code className="font-mono">{creds.ketua.password}</code>
-              </p>
-            </button>
+        {/* PILIH BILIK */}
+        <fieldset>
+          <legend className="mb-2 text-xs font-bold text-slate-700">Nomor bilik</legend>
+          {booths.length === 0 ? (
+            <p className="rounded-2xl bg-sky px-4 py-3 text-center text-xs text-slate-500">
+              Belum ada bilik. Superadmin perlu menambahkan bilik terlebih dahulu.
+            </p>
+          ) : (
+            <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-5">
+              {booths.map((booth, index) => {
+                const isSelected = String(booth.id) === String(boothId);
+                const color = FESTIVE_COLORS[index % FESTIVE_COLORS.length];
+                // Kuning & mint terlalu terang untuk teks putih
+                const isLightColor = color === "#ffc93c" || color === "#2dd4a7";
+                return (
+                  <button
+                    key={booth.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => handleSelectBooth(booth.id)}
+                    className={`fx-pop-in relative flex aspect-square flex-col items-center justify-center rounded-2xl border-2 font-display transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 ${
+                      isSelected
+                        ? `-translate-y-1 -rotate-3 scale-105 border-transparent shadow-lg ${isLightColor ? "text-ink" : "text-white"}`
+                        : "border-slate-200 bg-white text-ink hover:-translate-y-0.5 hover:border-violet-300"
+                    }`}
+                    style={{
+                      "--delay": `${200 + index * 60}ms`,
+                      background: isSelected ? color : undefined,
+                    }}
+                  >
+                    <span className="text-2xl font-bold leading-none">{String(booth.id).padStart(2, "0")}</span>
+                    <span className={`text-[10px] font-semibold ${isSelected ? "opacity-90" : "text-slate-400"}`}>bilik</span>
+                    {isSelected && (
+                      <span className="fx-digit absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs text-emerald-600 shadow">
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </fieldset>
+
+        {/* KODE AKSES: 6 kotak dengan satu input asli di atasnya */}
+        <div>
+          <label htmlFor="access-code" className="mb-2 block text-xs font-bold text-slate-700">
+            Kode akses bilik
+          </label>
+          <div className="relative">
+            <div aria-hidden="true" className="grid grid-cols-6 gap-2">
+              {Array.from({ length: CODE_LENGTH }, (_, i) => {
+                const digit = accessCode[i];
+                const isCaret = isCodeFocused && i === Math.min(accessCode.length, CODE_LENGTH - 1);
+                return (
+                  <div
+                    key={i}
+                    className={`flex h-14 items-center justify-center rounded-2xl border-2 font-display text-2xl font-bold transition-all duration-200 ${
+                      digit
+                        ? "-translate-y-0.5 border-violet-500 bg-sky text-violet-700 shadow-md"
+                        : isCaret
+                          ? "border-violet-400 bg-white ring-4 ring-violet-100"
+                          : "border-slate-200 bg-white text-slate-300"
+                    }`}
+                  >
+                    {digit ? <span key={digit + i} className="fx-digit">●</span> : isCaret ? <span className="h-6 w-0.5 animate-pulse rounded bg-violet-500" /> : ""}
+                  </div>
+                );
+              })}
+            </div>
+            <input
+              id="access-code"
+              ref={codeInputRef}
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={CODE_LENGTH}
+              value={accessCode}
+              onChange={(e) => setAccessCode(e.target.value.replace(/\D/g, "").slice(0, CODE_LENGTH))}
+              onFocus={() => setIsCodeFocused(true)}
+              onBlur={() => setIsCodeFocused(false)}
+              className="absolute inset-0 h-full w-full cursor-text opacity-0"
+            />
           </div>
         </div>
 
-        {/* FOOTER LINK */}
-        <div className="mt-6 text-center text-xs text-slate-400">
-          <Link href="/results" className="hover:underline hover:text-violet-600 font-semibold">
-            ← Kembali ke Database Suara
-          </Link>
-        </div>
-
-      </div>
-    </div>
+        <button
+          type="submit"
+          disabled={status !== "idle"}
+          className="group relative w-full overflow-hidden rounded-2xl bg-violet-600 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-violet-400/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-violet-700 active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-80"
+        >
+          <span
+            aria-hidden="true"
+            className="absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-white/30 transition-all duration-700 group-hover:left-[120%]"
+          />
+          <span className="relative flex items-center justify-center gap-2">
+            {status === "loading" && (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Mengaktifkan bilik...
+              </>
+            )}
+            {status === "success" && "Bilik aktif 🎉"}
+            {status === "idle" && "Aktifkan bilik"}
+          </span>
+        </button>
+        </form>
+      )}
+    </AuthShell>
   );
 }
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-violet-950 flex items-center justify-center p-6">
-      <Suspense
-        fallback={
-          <div className="flex flex-col items-center gap-3 text-white">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-white border-t-transparent" />
-            <p className="text-xs font-semibold">Memuat Halaman Login...</p>
-          </div>
-        }
-      >
-        <LoginForm />
-      </Suspense>
-    </main>
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-sky">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" />
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
