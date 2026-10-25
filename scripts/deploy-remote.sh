@@ -32,9 +32,24 @@ export SHADOW_DATABASE_URL="${SHADOW_DATABASE_URL:-mysql://unused:unused@127.0.0
 nice -n 10 node "$BASE/tools/node_modules/prisma/build/index.js" migrate deploy --schema prisma/schema.prisma
 
 # --- 2. Switch + restart ---------------------------------------------------------------------
+[ -f "$RELEASE/ecosystem.config.js" ] || { echo "ecosystem.config.js missing from $RELEASE"; ls -la "$RELEASE"; exit 1; }
+[ -f "$RELEASE/server.js" ] || { echo "server.js missing from $RELEASE"; ls -la "$RELEASE"; exit 1; }
+
 PREVIOUS="$(readlink -f "$BASE/current" 2>/dev/null || true)"
+# `current` must be a symlink; a real directory there would swallow the new link inside it
+if [ -e "$BASE/current" ] && [ ! -L "$BASE/current" ]; then
+  mv "$BASE/current" "$BASE/current.old-$(date +%s)"
+  PREVIOUS=""
+fi
 ln -sfn "$RELEASE" "$BASE/current"
-pm2 startOrReload "$BASE/current/ecosystem.config.js" --update-env
+[ -f "$BASE/current/ecosystem.config.js" ] || { echo "current -> $(readlink "$BASE/current") has no ecosystem.config.js"; exit 1; }
+
+# The previous setup ran 'suara' as a cluster app from another folder; a reload cannot change that.
+if pm2 describe suara 2>/dev/null | grep -qiE "exec mode.*cluster"; then
+  echo "Removing old cluster-mode 'suara' app"
+  pm2 delete suara
+fi
+pm2 startOrReload "$RELEASE/ecosystem.config.js" --update-env
 
 # --- 3. Health check, roll back on failure ---------------------------------------------------
 for i in $(seq 1 20); do
@@ -52,6 +67,6 @@ echo "Health check failed, rolling back" >&2
 pm2 logs suara --lines 30 --nostream >&2 || true
 if [ -n "$PREVIOUS" ] && [ -d "$PREVIOUS" ]; then
   ln -sfn "$PREVIOUS" "$BASE/current"
-  pm2 startOrReload "$BASE/current/ecosystem.config.js" --update-env
+  pm2 startOrReload "$PREVIOUS/ecosystem.config.js" --update-env
 fi
 exit 1
