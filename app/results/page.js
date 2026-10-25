@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useCallback, useEffect, useState, useMemo } from "react";
@@ -20,6 +19,7 @@ import {
   markResultsCounted,
   subscribeVotingStorage,
 } from "@/lib/votingStorage";
+import CandidatePhoto from "@/components/CandidatePhoto";
 
 
 export default function ResultsPage() {
@@ -258,9 +258,7 @@ export default function ResultsPage() {
                         >
                           <div className="flex items-center gap-4 p-5">
                             <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-violet-50 ring-1 ring-violet-100">
-                              {candidate.foto && (
-                                <img src={candidate.foto} alt={candidate.ketua} className="h-full w-full object-cover object-top" />
-                              )}
+                              <CandidatePhoto src={candidate.foto} nomor={candidate.nomor} ketua={candidate.ketua} wakil={candidate.wakil} />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
@@ -341,11 +339,7 @@ export default function ResultsPage() {
                         {/* Left: Candidate Identity */}
                         <div className="flex items-center gap-5">
                           <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-2 border-violet-200 bg-violet-100 shadow-inner">
-                            <img
-                              src={candidate.foto}
-                              alt={candidate.ketua}
-                              className="h-full w-full object-cover"
-                            />
+                            <CandidatePhoto src={candidate.foto} nomor={candidate.nomor} ketua={candidate.ketua} wakil={candidate.wakil} />
                             <span className="absolute bottom-1 right-1 rounded-md bg-violet-600 px-1.5 py-0.5 text-xs font-black text-white">
                               {candidate.nomor}
                             </span>

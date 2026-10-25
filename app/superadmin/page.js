@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,6 +5,8 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import AuthGuard from "@/components/AuthGuard";
 import SearchSelect from "@/components/SearchSelect";
+import CandidatePhoto from "@/components/CandidatePhoto";
+import PhotoUpload, { PhotoReplaceButton } from "@/components/PhotoUpload";
 import useSinarData from "@/lib/useSinarData";
 import { Banner, DashboardHero, DashboardShell, StatTile } from "@/components/Dashboard";
 import {
@@ -26,6 +27,7 @@ import {
   getCandidatesList,
   addCandidate,
   removeCandidate,
+  updateCandidate,
   getStudentsList,
   saveStudentsList,
   importDptFromData,
@@ -80,7 +82,7 @@ function SuperadminPageContent() {
     ketuaNis: "",
     wakilNis: "",
     slogan: "",
-    foto: "/candidates/paslon-01.png",
+    foto: "",
     visi: "",
     misi: "",
     programKerja: "",
@@ -90,6 +92,7 @@ function SuperadminPageContent() {
   const sinar = useSinarData();
   const [dptClass, setDptClass] = useState("");
   const [notification, setNotification] = useState(null);
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
 
   // Creds forms
   const [superadminCredsForm, setSuperadminCredsForm] = useState({
@@ -176,11 +179,6 @@ function SuperadminPageContent() {
   const paslonNumberOptions = Array.from({ length: 10 }, (_, i) => String(i + 1).padStart(2, "0"))
     .filter((n) => !candidates.some((c) => String(c.nomor) === n))
     .map((n) => ({ value: n, label: `Nomor urut ${n}` }));
-
-  const photoOptions = [1, 2, 3].map((n) => ({
-    value: `/candidates/paslon-0${n}.png`,
-    label: `Foto paslon-0${n}.png`,
-  }));
 
   const jabatanOptions = [
     "Ketua OSIS Saat Ini (Demisioner)",
@@ -344,6 +342,10 @@ function SuperadminPageContent() {
       showBanner("⚠️ Pilih calon ketua dan calon wakil dari data siswa Sinar.", "warning");
       return;
     }
+    if (!paslonForm.foto) {
+      showBanner("⚠️ Unggah foto paslon terlebih dahulu.", "warning");
+      return;
+    }
     if (ketua.nis === wakil.nis) {
       showBanner("⚠️ Calon ketua dan wakil harus orang yang berbeda.", "warning");
       return;
@@ -381,13 +383,18 @@ function SuperadminPageContent() {
       ketuaNis: "",
       wakilNis: "",
       slogan: "",
-      foto: "/candidates/paslon-01.png",
+      foto: "",
       visi: "",
       misi: "",
       programKerja: "",
     });
 
     showBanner("🏆 Master Paslon baru berhasil ditambahkan!");
+  }
+
+  function handleReplacePaslonPhoto(cand, url) {
+    updateCandidate(cand.id, { foto: url });
+    showBanner(`📷 Foto Paslon ${cand.nomor} berhasil diganti.`);
   }
 
   function handleRemovePaslon(id) {
@@ -1157,11 +1164,10 @@ function SuperadminPageContent() {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Foto Paslon
                   </label>
-                  <SearchSelect
-                    options={photoOptions}
+                  <PhotoUpload
                     value={paslonForm.foto}
-                    onChange={(foto) => setPaslonForm({ ...paslonForm, foto })}
-                    searchPlaceholder="Cari foto..."
+                    onChange={(foto) => setPaslonForm((f) => ({ ...f, foto }))}
+                    onUploadingChange={setIsPhotoUploading}
                     required
                   />
                 </div>
@@ -1181,9 +1187,10 @@ function SuperadminPageContent() {
 
                 <button
                   type="submit"
-                  className="w-full cursor-pointer rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-violet-700 shadow-sm"
+                  disabled={isPhotoUploading}
+                  className="w-full cursor-pointer rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-violet-700 shadow-sm disabled:opacity-60"
                 >
-                  + Tambah Paslon
+                  {isPhotoUploading ? "Menunggu foto selesai diunggah…" : "+ Tambah Paslon"}
                 </button>
               </form>
             </div>
@@ -1204,7 +1211,7 @@ function SuperadminPageContent() {
                   >
                     <div className="flex items-center gap-4">
                       <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-violet-200 bg-violet-100">
-                        <img src={cand.foto} alt={cand.ketua} className="h-full w-full object-cover" />
+                        <CandidatePhoto src={cand.foto} nomor={cand.nomor} ketua={cand.ketua} wakil={cand.wakil} />
                         <span className="absolute bottom-0.5 right-0.5 bg-violet-600 text-white text-[9px] font-black px-1 rounded">
                           {cand.nomor}
                         </span>
@@ -1218,12 +1225,18 @@ function SuperadminPageContent() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleRemovePaslon(cand.id)}
-                      className="cursor-pointer text-xs font-semibold text-rose-600 hover:underline"
-                    >
-                      Hapus Paslon
-                    </button>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <PhotoReplaceButton
+                        onUploaded={(url) => handleReplacePaslonPhoto(cand, url)}
+                        onError={(message) => showBanner(`⚠️ ${message}`, "warning")}
+                      />
+                      <button
+                        onClick={() => handleRemovePaslon(cand.id)}
+                        className="cursor-pointer text-xs font-semibold text-rose-600 hover:underline"
+                      >
+                        Hapus Paslon
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

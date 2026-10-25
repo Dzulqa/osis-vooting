@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+import CandidatePhoto from "@/components/CandidatePhoto";
 
 // Warna stiker nomor bergantian per paslon
 const STICKERS = ["bg-sun text-ink", "bg-coral text-ink", "bg-mint text-ink", "bg-lilac text-ink"];
@@ -24,10 +24,12 @@ export default function CandidateCard({
     <div className="group flex h-full min-h-0 flex-col overflow-hidden rounded-[1.75rem] bg-white/95 p-3.5 shadow-[0_18px_44px_-26px_rgba(31,42,72,0.4)] ring-1 ring-violet-100 backdrop-blur transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_26px_50px_-24px_rgba(90,114,216,0.45)] hover:ring-violet-200 sm:p-4">
       {/* FOTO */}
       <div className={`relative aspect-[16/10] w-full shrink-0 overflow-hidden rounded-[1.25rem] bg-gradient-to-br ${PHOTO_BANDS[tone]}`}>
-        <img
+        <CandidatePhoto
           src={foto}
-          alt={`Paslon ${nomor}`}
-          className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+          nomor={nomor}
+          ketua={ketua}
+          wakil={wakil}
+          imgClassName="transition-transform duration-500 group-hover:scale-105"
         />
 
         {/* NOMOR STIKER */}

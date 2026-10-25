@@ -14,7 +14,6 @@ import {
   getEventConfig,
   getCandidatesList,
   getStudentsList,
-  getVoteSummary,
   saveEventConfig,
   toggleResultRevealed,
   subscribeVotingStorage,
@@ -35,12 +34,6 @@ function KetuaOsisDashboardContent() {
   const [votesCount, setVotesCount] = useState(0);
   const [students, setStudents] = useState([]);
   const [candidates, setCandidates] = useState([]);
-  const [summaryData, setSummaryData] = useState({
-    totalVotes: 0,
-    candidateStats: [],
-    leader: null,
-  });
-  const [showCalculationDetails, setShowCalculationDetails] = useState(false);
 
   const [startTimeInput, setStartTimeInput] = useState("");
   const [endTimeInput, setEndTimeInput] = useState("");
@@ -54,8 +47,6 @@ function KetuaOsisDashboardContent() {
     setStudents(getStudentsList());
     const cands = getCandidatesList();
     setCandidates(cands);
-    const summary = getVoteSummary(cands);
-    setSummaryData(summary);
     const voted = getVotedStudents();
     setVotedStudents(voted);
     const votes = getVotes();
@@ -419,7 +410,7 @@ function KetuaOsisDashboardContent() {
                 </div>
               </div>
 
-              {/* DUA TOMBOL AKSI UTAMA PENGHITUNGAN */}
+              {/* TOMBOL AKSI PENGHITUNGAN */}
               <div className="mt-6 flex flex-col sm:flex-row gap-3">
                 {!eventConfig.isResultRevealed ? (
                   <button
@@ -438,70 +429,7 @@ function KetuaOsisDashboardContent() {
                     🔒 Kunci Perhitungan Suara
                   </button>
                 )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCalculationDetails(true);
-                    showBanner("📊 Berhasil menghitung total suara & paslon unggul!");
-                  }}
-                  className="flex-1 cursor-pointer rounded-2xl border border-violet-200 bg-violet-50 px-5 py-3.5 text-xs font-extrabold text-violet-800 transition hover:bg-violet-100 shadow-sm"
-                >
-                  📊 Hitung Total &amp; Paslon Unggul
-                </button>
               </div>
-
-              {/* PRANALA/PANEL HASIL KALKULASI KETUA OSIS */}
-              {/* Rincian hanya tampil setelah dihitung (tombol di bawah, atau "Hitung sekarang" di Rekapitulasi) */}
-              {(showCalculationDetails || eventConfig.resultsCountedAt) && (
-                <div className="mt-6 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50/80 to-amber-50/60 p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
-                      🏆 Hasil Kalkulasi Pemilihan Real-Time
-                    </p>
-                    <span className="rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-black text-white">
-                      Khusus Penyelenggara
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl bg-white p-3.5 border border-violet-100">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Total Suara Dihitung</p>
-                      <p className="text-xl font-black text-slate-900 mt-1">{summaryData.totalVotes} <span className="text-xs font-normal text-slate-400">suara</span></p>
-                    </div>
-
-                    <div className="rounded-xl bg-white p-3.5 border border-amber-200">
-                      <p className="text-[10px] font-bold text-amber-700 uppercase">Paslon Unggul saat Ini</p>
-                      {summaryData.leader ? (
-                        <p className="text-sm font-black text-amber-900 mt-1 truncate">
-                          Paslon {summaryData.leader.nomor} — {summaryData.leader.ketua}
-                        </p>
-                      ) : (
-                        <p className="text-xs font-semibold text-slate-400 mt-1">Belum Ada Suara</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* BREAKDOWN PER PASLON */}
-                  <div className="space-y-2 pt-2 border-t border-violet-100">
-                    <p className="text-[11px] font-bold text-slate-700">Rincian Perolehan Per Paslon:</p>
-                    {summaryData.candidateStats.map((item) => (
-                      <div key={item.candidate.id} className="flex items-center justify-between rounded-xl bg-white p-2.5 border border-slate-100 text-xs">
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="rounded-lg bg-violet-100 px-2 py-0.5 font-bold text-violet-700 text-[10px]">
-                            Paslon {item.candidate.nomor}
-                          </span>
-                          <span className="font-semibold text-slate-800 truncate">{item.candidate.ketua} &amp; {item.candidate.wakil}</span>
-                        </div>
-                        <div className="text-right shrink-0 ml-2">
-                          <span className="font-extrabold text-slate-900">{item.count} Suara</span>
-                          <span className="text-[10px] text-slate-400 ml-1">({item.percentage}%)</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="mt-6 border-t border-slate-100 pt-4 flex items-center justify-between">

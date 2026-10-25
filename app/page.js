@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -10,6 +9,7 @@ import {
   subscribeVotingStorage,
 } from "@/lib/votingStorage";
 import { BallotBox, Bunting, Confetti, FestiveBackdrop, Reveal } from "@/components/Festive";
+import CandidatePhoto from "@/components/CandidatePhoto";
 
 function formatSchedule(value) {
   if (!value) return "Belum dijadwalkan";
@@ -288,13 +288,15 @@ export default function LandingPage() {
                       >
                         <div className={`relative aspect-[4/3] shrink-0 overflow-hidden ${accent.band}`}>
                           <Confetti count={8} />
-                          {candidate.foto && (
-                            <img
+                          <div className="relative h-full w-full">
+                            <CandidatePhoto
                               src={candidate.foto}
-                              alt={`${candidate.ketua} dan ${candidate.wakil}`}
-                              className="relative h-full w-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                              nomor={candidate.nomor}
+                              ketua={candidate.ketua}
+                              wakil={candidate.wakil}
+                              imgClassName="transition-transform duration-700 group-hover:scale-105"
                             />
-                          )}
+                          </div>
                           {/* Pudar ke putih agar foto menyatu dengan isi kartu */}
                           <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-white to-transparent" />
                           <span

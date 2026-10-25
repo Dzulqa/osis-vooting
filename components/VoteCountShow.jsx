@@ -1,8 +1,8 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Confetti, ConfettiBurst } from "@/components/Festive";
+import CandidatePhoto from "@/components/CandidatePhoto";
 
 // Urutan acara: hitung mundur → surat suara dibuka satu per satu → jeda dramatis → pengumuman.
 // Setelah pengumuman, angka mengikuti data langsung sehingga suara baru tetap masuk.
@@ -334,9 +334,7 @@ export default function VoteCountShow({ candidateStats, academicYear, onClose, o
                     }`}
                   >
                     <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-[#e4e9ff] to-[#fde9f1]">
-                      {candidate.foto && (
-                        <img src={candidate.foto} alt={`Paslon ${candidate.nomor}`} className="h-full w-full object-cover object-top" />
-                      )}
+                      <CandidatePhoto src={candidate.foto} nomor={candidate.nomor} ketua={candidate.ketua} wakil={candidate.wakil} />
                       <span
                         className={`absolute left-4 top-4 flex h-12 w-12 -rotate-6 items-center justify-center rounded-2xl font-display text-xl font-bold shadow-lg ring-2 ring-white ${
                           STICKERS[index % STICKERS.length]
