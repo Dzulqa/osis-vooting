@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import Navbar from "@/components/Navbar";
 import AuthGuard from "@/components/AuthGuard";
 import SearchSelect from "@/components/SearchSelect";
+import { useConfirm } from "@/components/Modal";
+import { toast } from "@/lib/toast";
 import { DashboardHero, DashboardShell } from "@/components/Dashboard";
 
 import {
@@ -29,6 +31,7 @@ export default function RegistrationPage() {
 }
 
 function RegistrationPageContent() {
+  const [confirm, confirmModal] = useConfirm();
   const [activeTab, setActiveTab] = useState("siswa"); // "siswa" | "guru"
   const [selectedClass, setSelectedClass] = useState("");
   const [search, setSearch] = useState("");
@@ -176,21 +179,37 @@ function RegistrationPageContent() {
   // =========================================
   function handleRegister(voter) {
     const success = addToQueue(voter);
-    if (!success) return;
+    if (!success) {
+      toast(`${voter.nama} tidak bisa masuk antrean: sudah mengantre, sedang di bilik, atau sudah memilih.`, "warning");
+      return;
+    }
+    toast(`⏳ ${voter.nama} masuk antrean.`);
     loadLocalData();
   }
 
   // =========================================
   // BATALKAN DARI ANTREAN
   // =========================================
-  function handleRemoveFromQueue(voterId) {
+  async function handleRemoveFromQueue(voterId) {
+    const person = queue.find((item) => item.id === voterId);
+    const ok = await confirm({
+      tone: "danger",
+      icon: "⏳",
+      title: `Keluarkan ${person?.nama ?? "pemilih"} dari antrean?`,
+      description: "Pemilih ini bisa didaftarkan ulang ke antrean nanti.",
+      confirmLabel: "Ya, keluarkan",
+    });
+    if (!ok) return;
+
     removeFromQueue(voterId);
+    toast(`🗑️ ${person?.nama ?? "Pemilih"} dikeluarkan dari antrean.`, "warning");
     loadLocalData();
   }
 
   return (
     <DashboardShell>
       <Navbar />
+      {confirmModal}
 
       <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-10">
         {/* EVENT CLOSED WARNING */}

@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import AuthGuard from "@/components/AuthGuard";
+import { toast } from "@/lib/toast";
 import SearchSelect from "@/components/SearchSelect";
 import CandidatePhoto from "@/components/CandidatePhoto";
 import PhotoUpload, { PhotoReplaceButton } from "@/components/PhotoUpload";
 import VisiField from "@/components/VisiField";
+import { ConfirmModal, useConfirm } from "@/components/Modal";
 import useSinarData from "@/lib/useSinarData";
-import { Banner, DashboardHero, DashboardShell, StatTile } from "@/components/Dashboard";
+import { DashboardHero, DashboardShell, StatTile } from "@/components/Dashboard";
 import {
   getAcademicYear,
   getElections,
@@ -58,7 +60,9 @@ function SuperadminPageContent() {
   const [elections, setElections] = useState([]);
   const [voteTotals, setVoteTotals] = useState({ votes: 0, voters: 0, queue: 0 });
   const [clearConfirm, setClearConfirm] = useState("");
+  const [isClearOpen, setIsClearOpen] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [confirm, confirmModal] = useConfirm();
 
   // Form inputs
   const [electionForm, setElectionForm] = useState({
@@ -66,7 +70,6 @@ function SuperadminPageContent() {
     name: "",
     copyBooths: true,
   });
-  const [isConfirmingElection, setIsConfirmingElection] = useState(false);
   const [ketuaForm, setKetuaForm] = useState({
     nama: "",
     nis: "",
@@ -94,7 +97,6 @@ function SuperadminPageContent() {
   // Semua data master (tahun ajaran, kelas, siswa, guru) berasal dari Sinar
   const sinar = useSinarData();
   const [dptClass, setDptClass] = useState("");
-  const [notification, setNotification] = useState(null);
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
   const [visiDraft, setVisiDraft] = useState(null); // { id, text } saat mengedit visi paslon terdaftar
 
@@ -181,7 +183,7 @@ function SuperadminPageContent() {
         if (legacy.skipped > 0) {
           parts.push(`${legacy.skipped} tidak bisa dipindahkan (password kurang dari 8 karakter) — buat ulang dengan password baru`);
         }
-        showBanner(`${legacy.skipped > 0 ? "⚠️" : "✅"} ${parts.join("; ")}.`, legacy.skipped > 0 ? "warning" : "success");
+        toast(`${legacy.skipped > 0 ? "⚠️" : "✅"} ${parts.join("; ")}.`, legacy.skipped > 0 ? "warning" : "success");
       }
     }
     if (members.ok) setCommittee(members.data.members);
@@ -261,51 +263,57 @@ function SuperadminPageContent() {
     return subscribeVotingStorage(loadAllData);
   }, []);
 
-  function showBanner(message, type = "success") {
-    setNotification({ message, type });
-    setTimeout(() => {
-      setNotification(null);
-    }, 4000);
-  }
 
   // 1. Pemilihan per tahun ajaran
-  function handleRequestNewElection(e) {
+  async function handleRequestNewElection(e) {
     e.preventDefault();
     if (!electionForm.academicYear || !sinar.years.some((y) => y.name === electionForm.academicYear)) {
-      showBanner("⚠️ Pilih tahun ajaran dari daftar Sinar.", "warning");
+      toast("⚠️ Pilih tahun ajaran dari daftar Sinar.", "warning");
       return;
     }
     if (elections.some((el) => el.academicYear === electionForm.academicYear)) {
-      showBanner(`⚠️ Pemilihan ${electionForm.academicYear} sudah ada. Aktifkan dari daftar riwayat.`, "warning");
+      toast(`⚠️ Pemilihan ${electionForm.academicYear} sudah ada. Aktifkan dari daftar riwayat.`, "warning");
       return;
     }
-    setIsConfirmingElection(true);
-  }
+    const name = electionForm.name || `Pemilihan Ketua OSIS ${electionForm.academicYear}`;
+    const ok = await confirm({
+      icon: "✨",
+      title: `Buka "${name}"?`,
+      description: "Pemilihan ini langsung menjadi aktif. Semua dashboard, bilik, dan halaman publik beralih ke pemilihan ini.",
+      confirmLabel: "Ya, buka pemilihan",
+    });
+    if (!ok) return;
 
-  function handleConfirmNewElection() {
     const result = openNewElection(electionForm);
-    setIsConfirmingElection(false);
 
     if (!result.success) {
-      showBanner(`⚠️ ${result.message}`, "warning");
+      toast(`⚠️ ${result.message}`, "warning");
       return;
     }
 
     setElectionForm({ academicYear: "", name: "", copyBooths: true });
     // Ambil DPT terbaru dari Sinar untuk pemilihan baru
     sinar.refresh(true);
-    showBanner(
+    toast(
       `🎉 ${result.election.name} dibuka! Atur Ketua OSIS, paslon, dan DPT, lalu Ketua OSIS membuka jadwal pemilihan.`
     );
   }
 
-  function handleSwitchElection(election) {
+  async function handleSwitchElection(election) {
+    const ok = await confirm({
+      icon: "🔁",
+      title: `Aktifkan ${election.name}?`,
+      description: "Semua dashboard, bilik, dan halaman publik akan beralih ke pemilihan ini.",
+      confirmLabel: "Ya, aktifkan",
+    });
+    if (!ok) return;
+
     const result = setCurrentElection(election.id);
     if (!result.success) {
-      showBanner(`⚠️ ${result.message}`, "warning");
+      toast(`⚠️ ${result.message}`, "warning");
       return;
     }
-    showBanner(`🔁 Sekarang mengelola ${election.name}.`);
+    toast(`🔁 Sekarang mengelola ${election.name}.`);
   }
 
   // 1b. Manajemen Creds Auth (disimpan di database; kosongkan password bila tidak diganti)
@@ -313,11 +321,11 @@ function SuperadminPageContent() {
     if (!form.username.trim()) return;
     const result = await updateAccount(who, { username: form.username.trim(), password: form.password });
     if (!result.ok) {
-      showBanner(`⚠️ ${result.message}`, "warning");
+      toast(`⚠️ ${result.message}`, "warning");
       return;
     }
     await loadAccounts();
-    showBanner(successMessage);
+    toast(successMessage);
   }
 
   function handleSaveSuperadminCreds(e) {
@@ -335,11 +343,11 @@ function SuperadminPageContent() {
   function handleSaveKetua(e) {
     e.preventDefault();
     if (!ketuaForm.nis || !ketuaForm.jabatan) {
-      showBanner("⚠️ Pilih siswa dan jabatan terlebih dahulu.", "warning");
+      toast("⚠️ Pilih siswa dan jabatan terlebih dahulu.", "warning");
       return;
     }
     saveKetuaOsisIdentity(ketuaForm);
-    showBanner("👑 Identitas Ketua OSIS Saat Ini berhasil disimpan!");
+    toast("👑 Identitas Ketua OSIS Saat Ini berhasil disimpan!");
   }
 
   // 3. Panitia
@@ -348,7 +356,7 @@ function SuperadminPageContent() {
     const person = personOptions.find((p) => p.value === committeeForm.person);
     if (!person) return;
     if (committeeForm.password.length < 8) {
-      showBanner("⚠️ Password minimal 8 karakter.", "warning");
+      toast("⚠️ Password minimal 8 karakter.", "warning");
       return;
     }
 
@@ -362,41 +370,69 @@ function SuperadminPageContent() {
       role: committeeForm.role,
     });
     if (!result.ok) {
-      showBanner(`⚠️ ${result.message}`, "warning");
+      toast(`⚠️ ${result.message}`, "warning");
       return;
     }
     setCommitteeForm({ person: "", password: "", role: "Registrator" });
     await loadAccounts();
-    showBanner("👤 Akun Panitia baru berhasil ditambahkan!");
+    toast("👤 Akun Panitia baru berhasil ditambahkan!");
   }
 
   async function handleRemoveCommittee(id) {
+    const member = committee.find((item) => item.id === id);
+    const ok = await confirm({
+      tone: "danger",
+      icon: "👤",
+      title: `Hapus akun ${member?.name || member?.username || "panitia"}?`,
+      description: "Akun ini tidak bisa login lagi. Perangkat yang sedang memakainya akan keluar.",
+      confirmLabel: "Ya, hapus akun",
+    });
+    if (!ok) return;
+
     const result = await removeCommittee(id);
     if (!result.ok) {
-      showBanner(`⚠️ ${result.message}`, "warning");
+      toast(`⚠️ ${result.message}`, "warning");
       return;
     }
     await loadAccounts();
-    showBanner("🗑️ Panitia berhasil dihapus.", "warning");
+    toast("🗑️ Panitia berhasil dihapus.", "warning");
   }
 
   // 4. Bilik Suara Dinamis
   function handleAddBooth() {
     const newB = addBooth();
-    showBanner(`➕ Bilik ${String(newB.id).padStart(2, "0")} berhasil ditambahkan!`);
+    toast(`➕ Bilik ${String(newB.id).padStart(2, "0")} berhasil ditambahkan!`);
   }
 
-  function handleRegenerateBoothCode(id) {
+  async function handleRegenerateBoothCode(id) {
+    const ok = await confirm({
+      tone: "warning",
+      icon: "🔑",
+      title: `Ganti kode akses Bilik ${String(id).padStart(2, "0")}?`,
+      description: "Perangkat yang sedang login dengan kode lama akan keluar dan harus login ulang dengan kode baru.",
+      confirmLabel: "Ya, ganti kode",
+    });
+    if (!ok) return;
+
     regenerateBoothCode(id);
-    showBanner(`🔑 Kode akses Bilik ${String(id).padStart(2, "0")} diganti. Perangkat lama harus login ulang.`);
+    toast(`🔑 Kode akses Bilik ${String(id).padStart(2, "0")} diganti. Perangkat lama harus login ulang.`);
   }
 
-  function handleRemoveBooth(id) {
+  async function handleRemoveBooth(id) {
+    const ok = await confirm({
+      tone: "danger",
+      icon: "🚪",
+      title: `Hapus Bilik ${String(id).padStart(2, "0")}?`,
+      description: "Bilik dan kode aksesnya dihapus. Perangkat bilik ini tidak bisa dipakai lagi.",
+      confirmLabel: "Ya, hapus bilik",
+    });
+    if (!ok) return;
+
     const success = removeBooth(id);
     if (success) {
-      showBanner(`🗑️ Bilik ${String(id).padStart(2, "0")} berhasil dihapus.`, "warning");
+      toast(`🗑️ Bilik ${String(id).padStart(2, "0")} berhasil dihapus.`, "warning");
     } else {
-      showBanner("⚠️ Minimal harus ada 1 Bilik Suara di sistem.", "warning");
+      toast("⚠️ Minimal harus ada 1 Bilik Suara di sistem.", "warning");
     }
   }
 
@@ -406,19 +442,19 @@ function SuperadminPageContent() {
     const ketua = sinar.students.find((st) => st.nis === paslonForm.ketuaNis);
     const wakil = sinar.students.find((st) => st.nis === paslonForm.wakilNis);
     if (!ketua || !wakil) {
-      showBanner("⚠️ Pilih calon ketua dan calon wakil dari data siswa Sinar.", "warning");
+      toast("⚠️ Pilih calon ketua dan calon wakil dari data siswa Sinar.", "warning");
       return;
     }
     if (!paslonForm.foto) {
-      showBanner("⚠️ Unggah foto paslon terlebih dahulu.", "warning");
+      toast("⚠️ Unggah foto paslon terlebih dahulu.", "warning");
       return;
     }
     if (ketua.nis === wakil.nis) {
-      showBanner("⚠️ Calon ketua dan wakil harus orang yang berbeda.", "warning");
+      toast("⚠️ Calon ketua dan wakil harus orang yang berbeda.", "warning");
       return;
     }
     if (candidates.some((c) => [c.ketuaNis, c.wakilNis].some((n) => n && [ketua.nis, wakil.nis].includes(n)))) {
-      showBanner("⚠️ Salah satu calon sudah tergabung di paslon lain.", "warning");
+      toast("⚠️ Salah satu calon sudah tergabung di paslon lain.", "warning");
       return;
     }
 
@@ -456,7 +492,7 @@ function SuperadminPageContent() {
       programKerja: "",
     });
 
-    showBanner("🏆 Master Paslon baru berhasil ditambahkan!");
+    toast("🏆 Master Paslon baru berhasil ditambahkan!");
   }
 
   function handleSaveVisi() {
@@ -464,17 +500,27 @@ function SuperadminPageContent() {
     const cand = candidates.find((c) => c.id === visiDraft.id);
     updateCandidate(visiDraft.id, { visi: visiDraft.text.trim() });
     setVisiDraft(null);
-    showBanner(`📝 Visi Paslon ${cand?.nomor ?? ""} berhasil diperbarui.`);
+    toast(`📝 Visi Paslon ${cand?.nomor ?? ""} berhasil diperbarui.`);
   }
 
   function handleReplacePaslonPhoto(cand, url) {
     updateCandidate(cand.id, { foto: url });
-    showBanner(`📷 Foto Paslon ${cand.nomor} berhasil diganti.`);
+    toast(`📷 Foto Paslon ${cand.nomor} berhasil diganti.`);
   }
 
-  function handleRemovePaslon(id) {
+  async function handleRemovePaslon(id) {
+    const cand = candidates.find((c) => c.id === id);
+    const ok = await confirm({
+      tone: "danger",
+      icon: "🗑️",
+      title: `Hapus Paslon ${cand?.nomor ?? ""}?`,
+      description: cand ? `${cand.ketua} & ${cand.wakil} akan dihapus dari daftar paslon.` : undefined,
+      confirmLabel: "Ya, hapus paslon",
+    });
+    if (!ok) return;
+
     removeCandidate(id);
-    showBanner("🗑️ Paslon berhasil dihapus.", "warning");
+    toast("🗑️ Paslon berhasil dihapus.", "warning");
   }
 
   // 6. Import DPT
@@ -482,48 +528,63 @@ function SuperadminPageContent() {
     e.preventDefault();
     const picked = sinar.students.filter((st) => !dptClass || st.kelas === dptClass);
     if (picked.length === 0) {
-      showBanner("⚠️ Tidak ada siswa Sinar untuk kelas tersebut.", "warning");
+      toast("⚠️ Tidak ada siswa Sinar untuk kelas tersebut.", "warning");
       return;
     }
     importDptFromData(picked);
-    showBanner(`📥 ${picked.length} siswa dari Sinar dijadikan DPT${dptClass ? ` (${dptClass})` : ""}.`);
+    toast(`📥 ${picked.length} siswa dari Sinar dijadikan DPT${dptClass ? ` (${dptClass})` : ""}.`);
   }
 
-  function handleResetDptDefault() {
-    if (window.confirm("Kosongkan seluruh Daftar Pemilih Tetap (DPT)?")) {
-      saveStudentsList([]);
-      showBanner("🔄 DPT berhasil dikosongkan.");
-    }
+  async function handleResetDptDefault() {
+    const ok = await confirm({
+      tone: "danger",
+      icon: "📋",
+      title: "Kosongkan seluruh DPT?",
+      description: `${students.length} siswa akan dihapus dari Daftar Pemilih Tetap. Bisa diimpor ulang dari Sinar.`,
+      confirmLabel: "Ya, kosongkan DPT",
+    });
+    if (!ok) return;
+
+    saveStudentsList([]);
+    toast("🔄 DPT berhasil dikosongkan.");
   }
 
   // 7. System Override & Reset Simulasi
   // Kosongkan suara hasil simulasi (di server, satu transaksi; bilik & jadwal tetap)
-  async function handleClearVotes(e) {
-    e.preventDefault();
+  function openClearVotes() {
+    setClearConfirm("");
+    setIsClearOpen(true);
+  }
+
+  async function handleClearVotes() {
     if (clearConfirm !== "KOSONGKAN" || isClearing) return;
     setIsClearing(true);
     const result = await clearVotes();
     setIsClearing(false);
 
     if (!result.ok) {
-      showBanner(`⚠️ ${result.message}`, "warning");
+      toast(`⚠️ ${result.message}`, "warning");
       return;
     }
     setClearConfirm("");
+    setIsClearOpen(false);
     await refreshNow();
     const { votes, voters } = result.data.cleared;
-    showBanner(`🧹 ${votes} suara dikosongkan, ${voters} siswa bisa memilih lagi. Hasil dikunci kembali.`);
+    toast(`🧹 ${votes} suara dikosongkan, ${voters} siswa bisa memilih lagi. Hasil dikunci kembali.`);
   }
 
-  function handleSystemOverride() {
-    if (
-      window.confirm(
-        "🚨 SYSTEM OVERRIDE: Apakah Anda yakin ingin membersihkan SELURUH transaksi voting, antrean, bilik, dan data uji coba?"
-      )
-    ) {
-      resetVotingSimulation();
-      showBanner("⚡ SYSTEM OVERRIDE Selesai! Database simulasi voting telah dibersihkan.", "warning");
-    }
+  async function handleSystemOverride() {
+    const ok = await confirm({
+      tone: "danger",
+      icon: "🚨",
+      title: "System override?",
+      description: "Seluruh transaksi voting, antrean, status bilik, dan data uji coba akan dibersihkan.",
+      confirmLabel: "Ya, bersihkan semua",
+    });
+    if (!ok) return;
+
+    resetVotingSimulation();
+    toast("⚡ SYSTEM OVERRIDE Selesai! Database simulasi voting telah dibersihkan.", "warning");
   }
 
   return (
@@ -532,7 +593,48 @@ function SuperadminPageContent() {
       <Navbar />
 
       {/* NOTIFIKASI BANNER */}
-      <Banner notification={notification} onClose={() => setNotification(null)} />
+      {confirmModal}
+
+      <ConfirmModal
+        open={isClearOpen}
+        tone="danger"
+        icon="🧹"
+        title={`Kosongkan ${voteTotals.votes} suara?`}
+        description="Tidak bisa dibatalkan. Lakukan hanya setelah simulasi, saat tidak ada siswa di dalam bilik."
+        confirmLabel={`Kosongkan ${voteTotals.votes} suara`}
+        loading={isClearing}
+        loadingLabel="Mengosongkan…"
+        confirmDisabled={clearConfirm !== "KOSONGKAN"}
+        onConfirm={handleClearVotes}
+        onCancel={() => setIsClearOpen(false)}
+      >
+        <ul className="space-y-1.5 text-sm leading-relaxed text-slate-600">
+          <li>🗑️ <span className="font-semibold text-ink">Dihapus:</span> {voteTotals.votes} suara, {voteTotals.voters} siswa yang sudah memilih, {voteTotals.queue} antrean.</li>
+          <li>🔒 <span className="font-semibold text-ink">Dikunci lagi:</span> hasil harus dibuka &amp; dihitung ulang.</li>
+          <li>✅ <span className="font-semibold text-ink">Tetap:</span> paslon, DPT, panitia, bilik &amp; kode aksesnya, jadwal.</li>
+        </ul>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleClearVotes();
+          }}
+          className="mt-4"
+        >
+          <label htmlFor="clear-confirm" className="text-xs font-semibold text-rose-800">
+            Ketik <code className="rounded bg-rose-50 px-1.5 py-0.5 font-bold text-rose-700">KOSONGKAN</code> untuk melanjutkan
+          </label>
+          <input
+            id="clear-confirm"
+            type="text"
+            value={clearConfirm}
+            onChange={(e) => setClearConfirm(e.target.value.toUpperCase())}
+            placeholder="KOSONGKAN"
+            autoComplete="off"
+            data-autofocus
+            className="mt-2 w-full rounded-xl border border-rose-200 bg-white px-3.5 py-2.5 text-sm font-bold tracking-widest text-rose-700 outline-none transition placeholder:font-normal placeholder:tracking-normal placeholder:text-rose-300 focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
+          />
+        </form>
+      </ConfirmModal>
 
       <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-10">
         {/* HEADER SUPERADMIN */}
@@ -679,39 +781,12 @@ function SuperadminPageContent() {
                     ))}
                   </div>
 
-                  {isConfirmingElection ? (
-                    <div className="fx-pop-in rounded-2xl bg-sun-soft p-4 ring-1 ring-amber-200">
-                      <p className="text-xs font-bold text-amber-900">
-                        Buka &ldquo;{electionForm.name || `Pemilihan Ketua OSIS ${electionForm.academicYear}`}&rdquo; dan jadikan aktif?
-                      </p>
-                      <p className="mt-1 text-[11px] leading-relaxed text-amber-800">
-                        Semua dashboard, bilik, dan halaman publik akan langsung beralih ke pemilihan ini.
-                      </p>
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setIsConfirmingElection(false)}
-                          className="flex-1 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-50"
-                        >
-                          Batal
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleConfirmNewElection}
-                          className="flex-1 rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-violet-700"
-                        >
-                          Ya, buka pemilihan
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="submit"
-                      className="w-full rounded-xl bg-violet-600 px-6 py-3 text-xs font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-700 active:translate-y-0"
-                    >
-                      ✨ Buka pemilihan baru
-                    </button>
-                  )}
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl bg-violet-600 px-6 py-3 text-xs font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-700 active:translate-y-0"
+                  >
+                    ✨ Buka pemilihan baru
+                  </button>
                 </form>
               </div>
 
@@ -800,30 +875,20 @@ function SuperadminPageContent() {
                   </ul>
                 </div>
 
-                <form onSubmit={handleClearVotes} className="rounded-2xl bg-coral-soft/60 p-5 ring-1 ring-rose-100">
+                <div className="rounded-2xl bg-coral-soft/60 p-5 ring-1 ring-rose-100">
                   <p className="text-xs font-bold text-rose-800">⚠️ Tidak bisa dibatalkan</p>
                   <p className="mt-1 text-xs leading-relaxed text-rose-900/80">
-                    Lakukan hanya setelah simulasi, saat tidak ada siswa di dalam bilik. Ketik{" "}
-                    <code className="rounded bg-white px-1.5 py-0.5 font-bold text-rose-700">KOSONGKAN</code> untuk melanjutkan.
+                    Lakukan hanya setelah simulasi, saat tidak ada siswa di dalam bilik. Anda akan diminta mengetik{" "}
+                    <code className="rounded bg-white px-1.5 py-0.5 font-bold text-rose-700">KOSONGKAN</code> untuk konfirmasi.
                   </p>
-                  <label htmlFor="clear-confirm" className="sr-only">Ketik KOSONGKAN</label>
-                  <input
-                    id="clear-confirm"
-                    type="text"
-                    value={clearConfirm}
-                    onChange={(e) => setClearConfirm(e.target.value.toUpperCase())}
-                    placeholder="KOSONGKAN"
-                    autoComplete="off"
-                    className="mt-3 w-full rounded-xl border border-rose-200 bg-white px-3.5 py-2.5 text-sm font-bold tracking-widest text-rose-700 outline-none transition placeholder:font-normal placeholder:tracking-normal placeholder:text-rose-300 focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
-                  />
                   <button
-                    type="submit"
-                    disabled={clearConfirm !== "KOSONGKAN" || isClearing}
-                    className="mt-3 w-full rounded-xl bg-rose-500 px-4 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-rose-200"
+                    type="button"
+                    onClick={openClearVotes}
+                    className="mt-4 w-full rounded-xl bg-rose-500 px-4 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-rose-600"
                   >
-                    {isClearing ? "Mengosongkan…" : `🧹 Kosongkan ${voteTotals.votes} suara`}
+                    🧹 Kosongkan {voteTotals.votes} suara
                   </button>
-                </form>
+                </div>
               </div>
             </div>
           </div>
@@ -1386,7 +1451,7 @@ function SuperadminPageContent() {
                       </button>
                       <PhotoReplaceButton
                         onUploaded={(url) => handleReplacePaslonPhoto(cand, url)}
-                        onError={(message) => showBanner(`⚠️ ${message}`, "warning")}
+                        onError={(message) => toast(`⚠️ ${message}`, "warning")}
                       />
                       <button
                         onClick={() => handleRemovePaslon(cand.id)}

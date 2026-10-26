@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import AuthGuard from "@/components/AuthGuard";
-import { Banner, DashboardHero, DashboardShell, Panel, PanelTitle, StatTile } from "@/components/Dashboard";
+import { toast } from "@/lib/toast";
+import { useConfirm } from "@/components/Modal";
+import { DashboardHero, DashboardShell, Panel, PanelTitle, StatTile } from "@/components/Dashboard";
 import {
   getBooths,
   getQueue,
@@ -21,6 +23,7 @@ import {
 } from "@/lib/votingStorage";
 
 function KetuaOsisDashboardContent() {
+  const [confirm, confirmModal] = useConfirm();
 
   const [eventConfig, setEventConfig] = useState({
     status: "open",
@@ -37,7 +40,6 @@ function KetuaOsisDashboardContent() {
 
   const [startTimeInput, setStartTimeInput] = useState("");
   const [endTimeInput, setEndTimeInput] = useState("");
-  const [notification, setNotification] = useState(null);
 
   function loadAllData() {
     const config = getEventConfig();
@@ -76,7 +78,7 @@ function KetuaOsisDashboardContent() {
           result.newStatus === "open"
             ? "🟢 Event E-Voting otomatis DIBUKA sesuai jadwal!"
             : "🔴 Event E-Voting otomatis DITUTUP sesuai jadwal!";
-        showBanner(msg, result.newStatus === "open" ? "success" : "warning");
+        toast(msg, result.newStatus === "open" ? "success" : "warning");
       }
     }, 30000);
 
@@ -88,17 +90,23 @@ function KetuaOsisDashboardContent() {
     };
   }, []);
 
-  function showBanner(message, type = "success") {
-    setNotification({ message, type });
-    setTimeout(() => {
-      setNotification(null);
-    }, 4000);
-  }
 
   // Toggle Buka / Tutup Event Voting
-  function handleToggleStatus(newStatus) {
+  async function handleToggleStatus(newStatus) {
+    const opening = newStatus === "open";
+    const ok = await confirm({
+      tone: opening ? "success" : "danger",
+      icon: opening ? "🟢" : "🔒",
+      title: opening ? "Buka event e-voting sekarang?" : "Tutup event e-voting sekarang?",
+      description: opening
+        ? "Pemanggil dan bilik suara langsung bisa dipakai untuk memilih."
+        : "Pemanggilan dan bilik suara langsung dinonaktifkan. Siswa yang belum memilih tidak bisa memilih.",
+      confirmLabel: opening ? "Ya, buka" : "Ya, tutup",
+    });
+    if (!ok) return;
+
     saveEventConfig({ status: newStatus });
-    showBanner(
+    toast(
       newStatus === "open"
         ? "✅ Event E-Voting berhasil DIBUKA secara resmi."
         : "⚠️ Event E-Voting berhasil DITUTUP. Akses memilih dinonaktifkan.",
@@ -111,12 +119,12 @@ function KetuaOsisDashboardContent() {
     e.preventDefault();
 
     if (!startTimeInput && !endTimeInput) {
-      showBanner("⚠️ Harap isi minimal Waktu Buka atau Waktu Tutup!", "warning");
+      toast("⚠️ Harap isi minimal Waktu Buka atau Waktu Tutup!", "warning");
       return;
     }
 
     if (startTimeInput && endTimeInput && new Date(startTimeInput) >= new Date(endTimeInput)) {
-      showBanner("⚠️ Waktu Buka harus lebih awal dari Waktu Tutup!", "warning");
+      toast("⚠️ Waktu Buka harus lebih awal dari Waktu Tutup!", "warning");
       return;
     }
 
@@ -134,23 +142,34 @@ function KetuaOsisDashboardContent() {
         result.newStatus === "open"
           ? "🟢 Event langsung DIBUKA karena waktu saat ini sudah masuk jadwal!"
           : "🔴 Event langsung DITUTUP karena waktu saat ini di luar jadwal!";
-      showBanner(`📅 Jadwal disimpan & diterapkan! ${statusMsg}`, result.newStatus === "open" ? "success" : "warning");
+      toast(`📅 Jadwal disimpan & diterapkan! ${statusMsg}`, result.newStatus === "open" ? "success" : "warning");
     } else {
-      showBanner("📅 Jadwal Event E-Voting berhasil diperbarui! Status akan menyesuaikan otomatis.");
+      toast("📅 Jadwal Event E-Voting berhasil diperbarui! Status akan menyesuaikan otomatis.");
     }
   }
 
   // Otorisasi Penghitungan Suara
-  function handleToggleAuthorization() {
+  async function handleToggleAuthorization() {
     const nextState = !eventConfig.isResultRevealed;
+    const ok = await confirm({
+      tone: nextState ? "primary" : "warning",
+      icon: nextState ? "🔓" : "🔒",
+      title: nextState ? "Buka hasil penghitungan suara?" : "Kunci kembali hasil penghitungan?",
+      description: nextState
+        ? "Hasil perolehan suara bisa dihitung dan dilihat oleh Saksi & Publik."
+        : "Rekapitulasi suara disembunyikan lagi dari Saksi & Publik.",
+      confirmLabel: nextState ? "Ya, buka hasil" : "Ya, kunci",
+    });
+    if (!ok) return;
+
     toggleResultRevealed(nextState);
     if (nextState) {
-      showBanner(
+      toast(
         "🎉 Otorisasi diberikan! Hasil perolehan suara kini dihitung dan dapat dilihat oleh Saksi & Publik.",
         "success"
       );
     } else {
-      showBanner(
+      toast(
         "🔒 Perhitungan suara dikunci kembali. Rekapitulasi suara disembunyikan.",
         "warning"
       );
@@ -166,7 +185,7 @@ function KetuaOsisDashboardContent() {
       <Navbar />
 
       {/* NOTIFIKASI BANNER */}
-      <Banner notification={notification} onClose={() => setNotification(null)} />
+      {confirmModal}
 
       <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-10">
         {/* HEADER DASHBOARD KETUA OSIS */}
@@ -341,7 +360,7 @@ function KetuaOsisDashboardContent() {
                         setStartTimeInput("");
                         setEndTimeInput("");
                         loadAllData();
-                        showBanner("🗑️ Jadwal otomatis dihapus. Status event dikendalikan manual.", "warning");
+                        toast("🗑️ Jadwal otomatis dihapus. Status event dikendalikan manual.", "warning");
                       }}
                       className="cursor-pointer rounded-xl border border-rose-200 px-4 py-2.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
                     >

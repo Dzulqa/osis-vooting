@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Confetti, Reveal } from "@/components/Festive";
+import Toaster from "@/components/Toaster";
 
 // ========================================
 // SHELL — kanvas lembut untuk semua dashboard
@@ -31,6 +32,7 @@ export function DashboardShell({ children }) {
         />
       </div>
       {children}
+      <Toaster />
     </main>
   );
 }
@@ -173,38 +175,6 @@ export function PanelTitle({ icon, title, subtitle, accent = "violet", right }) 
         </div>
       </div>
       {right}
-    </div>
-  );
-}
-
-// ========================================
-// BANNER — notifikasi hasil aksi
-// ========================================
-
-export function Banner({ notification, onClose }) {
-  if (!notification) return null;
-
-  const isSuccess = notification.type === "success";
-
-  return (
-    <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6 lg:px-10">
-      <div
-        key={notification.message}
-        role="status"
-        className={`fx-pop-in flex items-center justify-between gap-4 rounded-2xl px-5 py-3.5 shadow-lg ring-1 ${
-          isSuccess
-            ? "bg-mint-soft text-emerald-900 shadow-emerald-200/50 ring-mint/60"
-            : "bg-sun-soft text-amber-900 shadow-amber-200/50 ring-sun/70"
-        }`}
-      >
-        <p className="text-sm font-bold">{notification.message}</p>
-        <button
-          onClick={onClose}
-          className="shrink-0 rounded-full bg-white/80 px-3 py-1 text-xs font-bold ring-1 ring-black/5 transition hover:bg-white"
-        >
-          Tutup
-        </button>
-      </div>
     </div>
   );
 }

@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import CandidateCard from "@/components/CandidateCard";
 import CandidateDetail from "@/components/CandidateDetail";
 import VoteModal from "@/components/VoteModal";
+import { ConfirmModal } from "@/components/Modal";
+import { toast } from "@/lib/toast";
 import VoteSuccess from "@/components/VoteSuccess";
 import { BallotBox, Balloons, Bunting, FestiveBackdrop } from "@/components/Festive";
 
@@ -102,6 +104,7 @@ export default function VotingBooth({ boothId }) {
 
       if (!success) {
         setVoteStatus("idle");
+        toast("Suara belum terkirim. Coba tekan pilih lagi, atau panggil panitia.", "error");
         return;
       }
 
@@ -466,13 +469,6 @@ function BilikBadge({ boothLabel, showLogout = false }) {
   const canFullscreen = useSyncExternalStore(noopSubscribe, () => Boolean(document.fullscreenEnabled), () => false);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
 
-  // A forgotten confirmation should not stay armed
-  useEffect(() => {
-    if (!confirmingLogout) return;
-    const timer = setTimeout(() => setConfirmingLogout(false), 6000);
-    return () => clearTimeout(timer);
-  }, [confirmingLogout]);
-
   function toggleFullscreen() {
     if (document.fullscreenElement) {
       document.exitFullscreen?.();
@@ -511,36 +507,28 @@ function BilikBadge({ boothLabel, showLogout = false }) {
         </button>
       )}
 
-      {showLogout &&
-        (confirmingLogout ? (
-          <div className="flex items-center gap-1 rounded-full bg-white/95 py-1 pl-3 pr-1 shadow-sm ring-1 ring-rose-200">
-            <span className="text-[11px] font-bold text-rose-700">Keluar dari bilik?</span>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-full bg-rose-600 px-2.5 py-1 text-[11px] font-bold text-white transition hover:bg-rose-700"
-            >
-              Ya
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmingLogout(false)}
-              className="rounded-full px-2 py-1 text-[11px] font-bold text-slate-500 transition hover:bg-slate-100"
-            >
-              Batal
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setConfirmingLogout(true)}
-            aria-label="Keluar dari bilik"
-            title="Keluar dari bilik"
-            className={buttonClass}
-          >
-            ⏻
-          </button>
-        ))}
+      {showLogout && (
+        <button
+          type="button"
+          onClick={() => setConfirmingLogout(true)}
+          aria-label="Keluar dari bilik"
+          title="Keluar dari bilik"
+          className={buttonClass}
+        >
+          ⏻
+        </button>
+      )}
+
+      <ConfirmModal
+        open={confirmingLogout}
+        tone="danger"
+        icon="⏻"
+        title={`Keluar dari Bilik ${boothLabel}?`}
+        description="Perangkat ini berhenti menjadi bilik suara sampai panitia login lagi dengan kode akses bilik."
+        confirmLabel="Ya, keluar"
+        onConfirm={handleLogout}
+        onCancel={() => setConfirmingLogout(false)}
+      />
     </div>
   );
 }

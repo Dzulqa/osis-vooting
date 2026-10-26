@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import AuthGuard from "@/components/AuthGuard";
+import { useConfirm } from "@/components/Modal";
+import { toast } from "@/lib/toast";
 import { DashboardHero, DashboardShell } from "@/components/Dashboard";
 import {
 
@@ -56,16 +58,7 @@ function CallerPageContent() {
     return unsubscribe;
   }, []);
 
-  const [flash, setFlash] = useState(null); // { tone: "ok" | "error", text }
-  const flashTimer = useRef(null);
-  const [confirmCancelId, setConfirmCancelId] = useState(null);
-  const confirmTimer = useRef(null);
-
-  function showFlash(tone, text) {
-    setFlash({ tone, text });
-    clearTimeout(flashTimer.current);
-    flashTimer.current = setTimeout(() => setFlash(null), 3500);
-  }
+  const [confirm, confirmModal] = useConfirm();
 
   // Student and booth can be picked in either order; picking the second one assigns right away
   function assign(student, booth) {
@@ -75,9 +68,9 @@ function CallerPageContent() {
     setSelectedBooth(null);
 
     if (success) {
-      showFlash("ok", `${student.nama} → ${boothLabel(booth.id)}`);
+      toast(`✅ ${student.nama} diarahkan ke ${boothLabel(booth.id)}.`);
     } else {
-      showFlash("error", `${student.nama} tidak bisa diarahkan ke ${boothLabel(booth.id)}. Coba bilik lain.`);
+      toast(`${student.nama} tidak bisa diarahkan ke ${boothLabel(booth.id)}. Coba bilik lain.`, "error");
     }
 
     loadData();
@@ -110,23 +103,31 @@ function CallerPageContent() {
     setSelectedBooth(booth);
   }
 
-  // First tap asks for confirmation, second tap (within a few seconds) takes the student out
-  function handleCancelBooth(booth) {
-    if (confirmCancelId !== booth.id) {
-      setConfirmCancelId(booth.id);
-      clearTimeout(confirmTimer.current);
-      confirmTimer.current = setTimeout(() => setConfirmCancelId(null), 4000);
-      return;
-    }
+  async function handleCancelBooth(booth) {
+    const student = booth.student;
+    const ok = await confirm({
+      tone: "danger",
+      icon: "🚪",
+      title: `Keluarkan ${student?.nama ?? "siswa"} dari ${boothLabel(booth.id)}?`,
+      description:
+        booth.status === "active"
+          ? "Siswa ini sedang memilih. Sesinya dihentikan dan suaranya tidak akan terkirim."
+          : "Gunakan ini jika salah memanggil siswa.",
+      confirmLabel: "Ya, keluarkan",
+      children: (
+        <ul className="space-y-2 text-sm text-slate-600">
+          <li>🔁 {student?.nama ?? "Siswa"} kembali ke <span className="font-semibold text-ink">antrean paling atas</span>.</li>
+          <li>🟢 {boothLabel(booth.id)} langsung <span className="font-semibold text-ink">kosong</span> dan siap dipakai.</li>
+        </ul>
+      ),
+    });
+    if (!ok) return;
 
-    clearTimeout(confirmTimer.current);
-    setConfirmCancelId(null);
-
-    const student = cancelBoothAssignment(booth.id);
-    if (student) {
-      showFlash("ok", `${student.nama} dikeluarkan dari ${boothLabel(booth.id)} dan kembali ke antrean paling atas.`);
+    const removed = cancelBoothAssignment(booth.id);
+    if (removed) {
+      toast(`🔁 ${removed.nama} dikeluarkan dari ${boothLabel(booth.id)} dan kembali ke antrean paling atas.`);
     } else {
-      showFlash("error", `${boothLabel(booth.id)} sudah kosong.`);
+      toast(`${boothLabel(booth.id)} sudah kosong.`, "warning");
     }
     loadData();
   }
@@ -153,6 +154,7 @@ function CallerPageContent() {
   return (
     <DashboardShell>
       <Navbar />
+      {confirmModal}
 
       <div className="mx-auto max-w-7xl px-4 pt-6 pb-10 sm:px-6 lg:px-10">
 
@@ -179,22 +181,18 @@ function CallerPageContent() {
           />
         </div>
 
-        {/* PETUNJUK & HASIL */}
+        {/* PETUNJUK */}
         <div
           className={`mb-6 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold ring-1 transition ${
-            flash?.tone === "ok"
-              ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-              : flash?.tone === "error"
-              ? "bg-rose-50 text-rose-700 ring-rose-200"
-              : selectedStudent || selectedBooth
+            selectedStudent || selectedBooth
               ? "bg-violet-50 text-violet-700 ring-violet-200"
               : "bg-white text-slate-500 ring-slate-200"
           }`}
           aria-live="polite"
         >
-          <span className="text-lg">{flash?.tone === "ok" ? "✅" : flash?.tone === "error" ? "⚠️" : "👉"}</span>
-          <span className="min-w-0 flex-1">{flash ? flash.text : hint}</span>
-          {(selectedStudent || selectedBooth) && !flash && (
+          <span className="text-lg">👉</span>
+          <span className="min-w-0 flex-1">{hint}</span>
+          {(selectedStudent || selectedBooth) && (
             <button
               type="button"
               onClick={() => {
@@ -309,7 +307,6 @@ function CallerPageContent() {
                     ? "border-amber-300 bg-white"
                     : "border-violet-300 bg-white";
 
-                  const confirming = confirmCancelId === booth.id;
                   const badge = (
                     <span
                       className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl leading-none ${
@@ -388,13 +385,9 @@ function CallerPageContent() {
                             onClick={() => handleCancelBooth(booth)}
                             title="Salah panggil? Keluarkan siswa dan kembalikan ke antrean"
                             aria-label={`Keluarkan ${booth.student.nama} dari ${boothLabel(booth.id)}`}
-                            className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold transition ${
-                              confirming
-                                ? "bg-rose-600 text-white hover:bg-rose-700"
-                                : "bg-white text-rose-500 ring-1 ring-rose-200 hover:bg-rose-50"
-                            }`}
+                            className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-rose-500 ring-1 ring-rose-200 transition hover:bg-rose-50"
                           >
-                            {confirming ? "Ketuk lagi untuk keluarkan" : "✕ Keluarkan"}
+                            ✕ Keluarkan
                           </button>
                         )}
                       </div>
