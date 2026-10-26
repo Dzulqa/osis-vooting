@@ -271,7 +271,7 @@ function CallerPageContent() {
                 <p className="text-sm text-slate-400">Belum ada bilik yang disiapkan.</p>
               </div>
             ) : (
-              <div className="mt-5 grid grid-cols-2 gap-2.5">
+              <div className="mt-5 space-y-2">
                 {sortedBooths.map((booth) => {
                   const available = booth.status === "waiting";
                   const isSelected = selectedBooth?.id === booth.id;
@@ -279,8 +279,8 @@ function CallerPageContent() {
                     ? isSelected
                       ? "border-violet-500 bg-violet-50 ring-4 ring-violet-200"
                       : selectedStudent
-                      ? "border-emerald-400 bg-emerald-50 shadow-sm shadow-emerald-100 hover:-translate-y-0.5 hover:shadow-md"
-                      : "border-emerald-300 bg-emerald-50/70 hover:-translate-y-0.5 hover:border-emerald-400"
+                      ? "border-emerald-400 bg-emerald-50 shadow-sm shadow-emerald-100 hover:shadow-md"
+                      : "border-emerald-300 bg-emerald-50/70 hover:border-emerald-400"
                     : booth.status === "assigned"
                     ? "border-amber-200 bg-amber-50/60"
                     : "border-violet-200 bg-violet-50/50";
@@ -291,35 +291,24 @@ function CallerPageContent() {
                       type="button"
                       disabled={!available}
                       onClick={() => handleSelectBooth(booth)}
-                      className={`flex min-h-24 flex-col rounded-2xl border-2 p-3 text-left transition disabled:cursor-default ${tone}`}
+                      className={`flex w-full items-center gap-3 rounded-2xl border-2 p-3 text-left transition disabled:cursor-default ${tone}`}
                     >
-                      <div className="flex items-start justify-between gap-1">
-                        <span className="text-xl font-black leading-none text-slate-800">
-                          {String(booth.id).padStart(2, "0")}
-                        </span>
-                        <span
-                          className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                            available
-                              ? "bg-emerald-500 text-white"
-                              : booth.status === "assigned"
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-violet-100 text-violet-700"
-                          }`}
-                        >
-                          {!available && (
-                            <span
-                              className={`h-1.5 w-1.5 animate-pulse rounded-full ${
-                                booth.status === "assigned" ? "bg-amber-500" : "bg-violet-500"
-                              }`}
-                            />
-                          )}
-                          {available ? "Tersedia" : booth.status === "assigned" ? "Menunggu" : "Memilih"}
-                        </span>
-                      </div>
+                      <span
+                        className={`flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl leading-none ${
+                          available
+                            ? "bg-emerald-500 text-white"
+                            : booth.status === "assigned"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-violet-100 text-violet-700"
+                        }`}
+                      >
+                        <span className="text-[9px] font-bold uppercase tracking-wider opacity-80">Bilik</span>
+                        <span className="text-lg font-black">{String(booth.id).padStart(2, "0")}</span>
+                      </span>
 
-                      <div className="mt-auto pt-2">
+                      <div className="min-w-0 flex-1">
                         {available ? (
-                          <p className="text-xs font-semibold text-emerald-700">
+                          <p className="text-sm font-semibold text-emerald-700">
                             {isSelected ? "✓ Dipilih" : selectedStudent ? "Ketuk untuk arahkan" : "Kosong"}
                           </p>
                         ) : booth.student ? (
@@ -329,8 +318,29 @@ function CallerPageContent() {
                             </p>
                             <p className="truncate text-[11px] text-slate-400">{booth.student.kelas}</p>
                           </>
-                        ) : null}
+                        ) : (
+                          <p className="text-sm text-slate-400">—</p>
+                        )}
                       </div>
+
+                      <span
+                        className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                          available
+                            ? "bg-emerald-100 text-emerald-700"
+                            : booth.status === "assigned"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-violet-100 text-violet-700"
+                        }`}
+                      >
+                        {!available && (
+                          <span
+                            className={`h-1.5 w-1.5 animate-pulse rounded-full ${
+                              booth.status === "assigned" ? "bg-amber-500" : "bg-violet-500"
+                            }`}
+                          />
+                        )}
+                        {available ? "Tersedia" : booth.status === "assigned" ? "Menunggu" : "Memilih"}
+                      </span>
                     </button>
                   );
                 })}
