@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import {
   getAcademicYear,
@@ -11,6 +11,7 @@ import {
 import { BallotBox, Bunting, Confetti, FestiveBackdrop, Reveal } from "@/components/Festive";
 import CandidatePhoto from "@/components/CandidatePhoto";
 import Footer from "@/components/Footer";
+import PaslonShowcase from "@/components/PaslonShowcase";
 
 function formatSchedule(value) {
   if (!value) return "Belum dijadwalkan";
@@ -94,13 +95,35 @@ export default function LandingPage() {
   const [candidates, setCandidates] = useState([]);
   const [academicYear, setAcademicYear] = useState("");
   const [now, setNow] = useState(null);
-  const [flippedId, setFlippedId] = useState(null);
+  const [showcaseIndex, setShowcaseIndex] = useState(null);
 
-  // Di layar sentuh tidak ada hover → kartu dibalik dengan ketukan
-  function handleCardTap(id) {
-    if (window.matchMedia("(hover: hover)").matches) return;
-    setFlippedId((current) => (current === id ? null : id));
+  // Tampilan layar penuh paslon; ?paslon=<nomor> di URL supaya papan bisa langsung membukanya
+  const syncShowcaseUrl = useCallback(
+    (index) => {
+      const url = new URL(window.location.href);
+      if (index === null) url.searchParams.delete("paslon");
+      else url.searchParams.set("paslon", candidates[index]?.nomor ?? "");
+      window.history.replaceState(null, "", url);
+    },
+    [candidates]
+  );
+
+  function openShowcase(index) {
+    setShowcaseIndex(index);
+    syncShowcaseUrl(index);
   }
+
+  const closeShowcase = useCallback(() => {
+    setShowcaseIndex(null);
+    syncShowcaseUrl(null);
+  }, [syncShowcaseUrl]);
+
+  useEffect(() => {
+    if (candidates.length === 0) return;
+    const nomor = new URLSearchParams(window.location.search).get("paslon");
+    const index = nomor ? candidates.findIndex((c) => String(c.nomor) === nomor) : -1;
+    if (index >= 0) queueMicrotask(() => setShowcaseIndex((current) => current ?? index));
+  }, [candidates]);
 
   useEffect(() => {
     function loadData() {
@@ -271,16 +294,20 @@ export default function LandingPage() {
           <div className="mt-10 grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
             {candidates.map((candidate, index) => {
               const accent = CARD_ACCENTS[index % CARD_ACCENTS.length];
-              const isFlipped = flippedId === candidate.id;
               return (
                 <Reveal key={candidate.id} delay={index * 120} className="h-full">
                   <article
                     tabIndex={0}
-                    aria-label={`Paslon ${candidate.nomor}: ${candidate.ketua} dan ${candidate.wakil}`}
-                    onClick={() => handleCardTap(candidate.id)}
-                    className={`flip-card group h-full rounded-[2rem] outline-none focus-visible:ring-4 focus-visible:ring-violet-300 ${
-                      isFlipped ? "is-flipped" : ""
-                    }`}
+                    role="button"
+                    aria-label={`Paslon ${candidate.nomor}: ${candidate.ketua} dan ${candidate.wakil}. Buka tampilan layar penuh`}
+                    onClick={() => openShowcase(index)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openShowcase(index);
+                      }
+                    }}
+                    className="flip-card group h-full cursor-pointer rounded-[2rem] outline-none focus-visible:ring-4 focus-visible:ring-violet-300"
                   >
                     <div className="flip-inner">
                       {/* DEPAN — foto & nama */}
@@ -369,9 +396,13 @@ export default function LandingPage() {
                         <span aria-hidden="true" className={`mt-5 font-display text-6xl leading-none ${accent.label} opacity-40`}>
                           &ldquo;
                         </span>
-                        <p className="-mt-4 font-display text-lg font-medium leading-relaxed text-ink sm:text-xl">
+                        <p className="-mt-4 line-clamp-6 font-display text-lg font-medium leading-relaxed text-ink sm:text-xl">
                           {candidate.visi || "Visi pasangan calon belum diisi oleh panitia."}
                         </p>
+
+                        <span className="mt-auto inline-flex w-fit items-center gap-2 self-start rounded-full bg-white/85 px-4 py-2 text-xs font-bold text-ink shadow-sm ring-1 ring-white">
+                          ⛶ Klik untuk layar penuh
+                        </span>
                       </div>
                     </div>
                   </article>
@@ -414,6 +445,15 @@ export default function LandingPage() {
           </ol>
         </div>
       </section>
+
+      {showcaseIndex !== null && candidates[showcaseIndex] && (
+        <PaslonShowcase
+          candidates={candidates}
+          startIndex={showcaseIndex}
+          onClose={closeShowcase}
+          onIndexChange={syncShowcaseUrl}
+        />
+      )}
 
       {/* Hak cipta hanya ditampilkan di landing page */}
       <Footer />
