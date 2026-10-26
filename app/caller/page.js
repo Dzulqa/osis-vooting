@@ -10,6 +10,7 @@ import {
   getQueue,
   assignStudentToBooth,
   activateBooth,
+  cancelBoothAssignment,
   getEventConfig,
   subscribeVotingStorage,
 } from "@/lib/votingStorage";
@@ -57,6 +58,8 @@ function CallerPageContent() {
 
   const [flash, setFlash] = useState(null); // { tone: "ok" | "error", text }
   const flashTimer = useRef(null);
+  const [confirmCancelId, setConfirmCancelId] = useState(null);
+  const confirmTimer = useRef(null);
 
   function showFlash(tone, text) {
     setFlash({ tone, text });
@@ -105,6 +108,27 @@ function CallerPageContent() {
       return;
     }
     setSelectedBooth(booth);
+  }
+
+  // First tap asks for confirmation, second tap (within a few seconds) takes the student out
+  function handleCancelBooth(booth) {
+    if (confirmCancelId !== booth.id) {
+      setConfirmCancelId(booth.id);
+      clearTimeout(confirmTimer.current);
+      confirmTimer.current = setTimeout(() => setConfirmCancelId(null), 4000);
+      return;
+    }
+
+    clearTimeout(confirmTimer.current);
+    setConfirmCancelId(null);
+
+    const student = cancelBoothAssignment(booth.id);
+    if (student) {
+      showFlash("ok", `${student.nama} dikeluarkan dari ${boothLabel(booth.id)} dan kembali ke antrean paling atas.`);
+    } else {
+      showFlash("error", `${boothLabel(booth.id)} sudah kosong.`);
+    }
+    loadData();
   }
 
   function handleActivateBooth(boothId) {
@@ -285,13 +309,14 @@ function CallerPageContent() {
                     ? "border-amber-200 bg-amber-50/60"
                     : "border-violet-200 bg-violet-50/50";
 
+                  const Row = available ? "button" : "div";
+                  const confirming = confirmCancelId === booth.id;
+
                   return (
-                    <button
+                    <Row
                       key={booth.id}
-                      type="button"
-                      disabled={!available}
-                      onClick={() => handleSelectBooth(booth)}
-                      className={`flex w-full items-center gap-3 rounded-2xl border-2 p-3 text-left transition disabled:cursor-default ${tone}`}
+                      {...(available ? { type: "button", onClick: () => handleSelectBooth(booth) } : {})}
+                      className={`flex w-full items-center gap-3 rounded-2xl border-2 p-3 text-left transition ${tone}`}
                     >
                       <span
                         className={`flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl leading-none ${
@@ -341,7 +366,23 @@ function CallerPageContent() {
                         )}
                         {available ? "Tersedia" : booth.status === "assigned" ? "Menunggu" : "Memilih"}
                       </span>
-                    </button>
+
+                      {!available && booth.student && (
+                        <button
+                          type="button"
+                          onClick={() => handleCancelBooth(booth)}
+                          title="Salah panggil? Keluarkan siswa dan kembalikan ke antrean"
+                          aria-label={`Keluarkan ${booth.student.nama} dari ${boothLabel(booth.id)}`}
+                          className={`shrink-0 rounded-lg px-2 py-1 text-[11px] font-bold transition ${
+                            confirming
+                              ? "bg-rose-600 text-white hover:bg-rose-700"
+                              : "text-rose-500 ring-1 ring-rose-200 hover:bg-rose-50"
+                          }`}
+                        >
+                          {confirming ? (booth.status === "active" ? "Yakin? Sedang memilih" : "Yakin?") : "✕ Keluarkan"}
+                        </button>
+                      )}
+                    </Row>
                   );
                 })}
               </div>
