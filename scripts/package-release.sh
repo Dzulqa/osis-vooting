@@ -5,6 +5,9 @@ set -euo pipefail
 shopt -s nullglob
 
 OUT="${1:-release.tar.gz}"
+
+# Stop before shipping anything if a migration would delete production data
+bash scripts/check-migrations.sh
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
