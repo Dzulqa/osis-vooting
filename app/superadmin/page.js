@@ -7,6 +7,7 @@ import AuthGuard from "@/components/AuthGuard";
 import SearchSelect from "@/components/SearchSelect";
 import CandidatePhoto from "@/components/CandidatePhoto";
 import PhotoUpload, { PhotoReplaceButton } from "@/components/PhotoUpload";
+import VisiField from "@/components/VisiField";
 import useSinarData from "@/lib/useSinarData";
 import { Banner, DashboardHero, DashboardShell, StatTile } from "@/components/Dashboard";
 import {
@@ -93,6 +94,7 @@ function SuperadminPageContent() {
   const [dptClass, setDptClass] = useState("");
   const [notification, setNotification] = useState(null);
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
+  const [visiDraft, setVisiDraft] = useState(null); // { id, text } saat mengedit visi paslon terdaftar
 
   // Creds forms
   const [superadminCredsForm, setSuperadminCredsForm] = useState({
@@ -390,6 +392,14 @@ function SuperadminPageContent() {
     });
 
     showBanner("🏆 Master Paslon baru berhasil ditambahkan!");
+  }
+
+  function handleSaveVisi() {
+    if (!visiDraft) return;
+    const cand = candidates.find((c) => c.id === visiDraft.id);
+    updateCandidate(visiDraft.id, { visi: visiDraft.text.trim() });
+    setVisiDraft(null);
+    showBanner(`📝 Visi Paslon ${cand?.nomor ?? ""} berhasil diperbarui.`);
   }
 
   function handleReplacePaslonPhoto(cand, url) {
@@ -1176,12 +1186,9 @@ function SuperadminPageContent() {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Visi Paslon
                   </label>
-                  <textarea
-                    rows={2}
+                  <VisiField
                     value={paslonForm.visi}
-                    onChange={(e) => setPaslonForm({ ...paslonForm, visi: e.target.value })}
-                    placeholder="Visi utama..."
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-violet-500"
+                    onChange={(visi) => setPaslonForm((f) => ({ ...f, visi }))}
                   />
                 </div>
 
@@ -1205,10 +1212,8 @@ function SuperadminPageContent() {
 
               <div className="mt-5 space-y-4">
                 {candidates.map((cand) => (
-                  <div
-                    key={cand.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/60 p-4 gap-4"
-                  >
+                  <div key={cand.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                       <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-violet-200 bg-violet-100">
                         <CandidatePhoto src={cand.foto} nomor={cand.nomor} ketua={cand.ketua} wakil={cand.wakil} />
@@ -1225,7 +1230,17 @@ function SuperadminPageContent() {
                       </div>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-3">
+                    <div className="flex shrink-0 flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setVisiDraft(visiDraft?.id === cand.id ? null : { id: cand.id, text: cand.visi || "" })
+                        }
+                        aria-expanded={visiDraft?.id === cand.id}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-violet-700 ring-1 ring-violet-200 transition hover:bg-violet-50"
+                      >
+                        ✏️ Edit visi
+                      </button>
                       <PhotoReplaceButton
                         onUploaded={(url) => handleReplacePaslonPhoto(cand, url)}
                         onError={(message) => showBanner(`⚠️ ${message}`, "warning")}
@@ -1237,6 +1252,35 @@ function SuperadminPageContent() {
                         Hapus Paslon
                       </button>
                     </div>
+                  </div>
+
+                  {visiDraft?.id === cand.id && (
+                    <div className="fx-pop-in mt-4 rounded-2xl bg-white p-4 ring-1 ring-violet-100">
+                      <p className="mb-2 text-xs font-bold text-slate-700">Visi Paslon {cand.nomor}</p>
+                      <VisiField
+                        value={visiDraft.text}
+                        onChange={(text) => setVisiDraft((d) => ({ ...d, text }))}
+                        rows={9}
+                        autoFocus
+                      />
+                      <div className="mt-3 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setVisiDraft(null)}
+                          className="rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-50"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveVisi}
+                          className="rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-violet-700"
+                        >
+                          Simpan visi
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   </div>
                 ))}
               </div>

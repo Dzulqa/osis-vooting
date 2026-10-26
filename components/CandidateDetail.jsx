@@ -1,3 +1,5 @@
+import RichText from "@/components/RichText";
+
 export default function CandidateDetail({ candidate, onClose }) {
   return (
     <div className="flex h-full min-h-0 flex-col justify-between overflow-hidden rounded-3xl border border-violet-100/90 bg-white p-5 sm:p-6 shadow-lg shadow-slate-200/50">
@@ -5,7 +7,7 @@ export default function CandidateDetail({ candidate, onClose }) {
       {/* =========================
           HEADER
       ========================== */}
-      <div>
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
           <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-violet-600">
@@ -28,7 +30,8 @@ export default function CandidateDetail({ candidate, onClose }) {
         {/* =========================
             CONTENT
         ========================== */}
-        <div className="mt-4 space-y-4">
+        {/* Visi bisa panjang (banyak paragraf) → area isi bisa digulir */}
+        <div className="mt-4 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1">
 
           {/* VISI */}
           <div>
@@ -36,9 +39,11 @@ export default function CandidateDetail({ candidate, onClose }) {
               Visi
             </h3>
 
-            <p className="mt-1 text-xs sm:text-sm leading-relaxed text-slate-600">
-              {candidate.visi}
-            </p>
+            <RichText
+              text={candidate.visi}
+              className="mt-1 text-xs leading-relaxed text-slate-600 sm:text-sm"
+              empty={<p className="mt-1 text-xs italic text-slate-400 sm:text-sm">Visi belum diisi.</p>}
+            />
           </div>
 
           {/* MISI */}

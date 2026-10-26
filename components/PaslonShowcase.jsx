@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import CandidatePhoto from "@/components/CandidatePhoto";
+import RichText from "@/components/RichText";
 import { Confetti } from "@/components/Festive";
 
 // Tampilan presentasi paslon untuk layar besar (papan / proyektor)
@@ -56,14 +57,9 @@ function toList(value) {
   return [];
 }
 
-// Ukuran huruf visi menyesuaikan panjang teks agar tetap terbaca dari jauh
-function visiSizeClass(text) {
-  const length = (text || "").length;
-  if (length <= 120) return "text-[calc(var(--fit,1)*clamp(1.5rem,min(3.2vw,5.6vh),4rem))]";
-  if (length <= 260) return "text-[calc(var(--fit,1)*clamp(1.3rem,min(2.4vw,4.3vh),3rem))]";
-  if (length <= 480) return "text-[calc(var(--fit,1)*clamp(1.15rem,min(1.9vw,3.4vh),2.25rem))]";
-  return "text-[calc(var(--fit,1)*clamp(1rem,min(1.5vw,2.7vh),1.75rem))]";
-}
+// Visi mulai dari ukuran besar; efek "fit" di bawah mengecilkan (--fit) hanya seperlunya
+// sampai semua isi muat, dengan batas bawah agar tetap terbaca dari jauh.
+const VISI_TEXT = "text-[max(1rem,calc(var(--fit,1)*clamp(1.5rem,min(3.2vw,5.6vh),4rem)))]";
 
 export default function PaslonShowcase({ candidates, startIndex = 0, onClose, onIndexChange }) {
   const rootRef = useRef(null);
@@ -99,18 +95,72 @@ export default function PaslonShowcase({ candidates, startIndex = 0, onClose, on
     function fit() {
       let scale = 1;
       node.style.setProperty("--fit", "1");
-      while (measure.scrollHeight > measure.clientHeight + 1 && scale > 0.6) {
-        scale -= 0.03;
+      while (measure.scrollHeight > measure.clientHeight + 1 && scale > 0.36) {
+        scale -= 0.02;
         node.style.setProperty("--fit", scale.toFixed(2));
       }
     }
 
-    fit();
-    window.addEventListener("resize", fit);
-    document.addEventListener("fullscreenchange", fit);
+    // Bila masih tidak muat di ukuran terkecil: gulir pelan otomatis (papan tidak disentuh orang),
+    // jeda di atas & bawah, dan berhenti sebentar bila ada yang menggulir manual.
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let frame;
+    let last = 0;
+    let holdUntil = 0;
+    let position = 0;
+    let rewindTimer;
+
+    function autoScroll(now) {
+      frame = requestAnimationFrame(autoScroll);
+      const max = measure.scrollHeight - measure.clientHeight;
+      if (max <= 1 || reduceMotion) return;
+      if (!last) {
+        last = now;
+        holdUntil = now + 4000;
+        position = measure.scrollTop;
+      }
+      const delta = now - last;
+      last = now;
+      if (now < holdUntil) {
+        position = measure.scrollTop;
+        return;
+      }
+
+      position = Math.min(max, position + delta * 0.03); // ±30px per detik
+      measure.scrollTop = position;
+      if (position >= max) {
+        holdUntil = now + 4000;
+        rewindTimer = setTimeout(() => {
+          measure.scrollTo({ top: 0, behavior: "smooth" });
+          position = 0;
+          holdUntil = performance.now() + 4000;
+        }, 4000);
+      }
+    }
+
+    function pauseForUser() {
+      holdUntil = performance.now() + 8000;
+    }
+
+    function refit() {
+      fit();
+      measure.scrollTop = 0;
+      last = 0;
+    }
+
+    refit();
+    frame = requestAnimationFrame(autoScroll);
+    window.addEventListener("resize", refit);
+    document.addEventListener("fullscreenchange", refit);
+    measure.addEventListener("wheel", pauseForUser, { passive: true });
+    measure.addEventListener("touchstart", pauseForUser, { passive: true });
     return () => {
-      window.removeEventListener("resize", fit);
-      document.removeEventListener("fullscreenchange", fit);
+      cancelAnimationFrame(frame);
+      clearTimeout(rewindTimer);
+      window.removeEventListener("resize", refit);
+      document.removeEventListener("fullscreenchange", refit);
+      measure.removeEventListener("wheel", pauseForUser);
+      measure.removeEventListener("touchstart", pauseForUser);
     };
   }, [index, candidates]);
 
@@ -276,7 +326,7 @@ export default function PaslonShowcase({ candidates, startIndex = 0, onClose, on
         </section>
 
         {/* Slogan & visi */}
-        <section ref={fitRef} className="fx-rise flex min-h-0 flex-col gap-[calc(var(--fit,1)*2.5vh)]" style={{ "--delay": "120ms" }}>
+        <section ref={fitRef} className="fx-rise flex min-h-0 flex-col gap-[2.5vh]" style={{ "--delay": "120ms" }}>
           {candidate.slogan && (
             <figure className="relative flex items-center gap-[1.2vw] overflow-hidden rounded-[1.75rem] bg-white/85 py-[1.8vh] pl-[1.6vw] pr-[2vw] shadow-[0_20px_44px_-30px_rgba(31,42,72,0.5)] ring-1 ring-white backdrop-blur">
               <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-2 bg-gradient-to-b ${theme.bar}`} />
@@ -290,7 +340,7 @@ export default function PaslonShowcase({ candidates, startIndex = 0, onClose, on
                 <figcaption className={`text-[clamp(0.65rem,min(0.8vw,1.4vh),0.95rem)] font-bold uppercase tracking-[0.3em] ${theme.accent}`}>
                   Slogan
                 </figcaption>
-                <blockquote className="mt-0.5 line-clamp-2 font-display text-[calc(var(--fit,1)*clamp(1.05rem,min(1.75vw,3.1vh),2.2rem))] font-semibold italic leading-snug">
+                <blockquote className="mt-0.5 line-clamp-2 font-display text-[clamp(1.05rem,min(1.75vw,3.1vh),2.2rem)] font-semibold italic leading-snug">
                   {candidate.slogan}
                 </blockquote>
               </div>
@@ -300,12 +350,19 @@ export default function PaslonShowcase({ candidates, startIndex = 0, onClose, on
           <div className="flex min-h-0 flex-1 flex-col rounded-[2.25rem] bg-white/80 p-[2.2vw] shadow-[0_30px_60px_-40px_rgba(31,42,72,0.45)] ring-1 ring-white backdrop-blur">
             <p className={`text-[clamp(0.75rem,0.95vw,1.1rem)] font-bold uppercase tracking-[0.3em] ${theme.accent}`}>Visi</p>
             <div ref={measureRef} className="mt-[1.5vh] min-h-0 flex-1 overflow-y-auto pr-2">
-              <p className={`font-display font-medium leading-snug ${visiSizeClass(candidate.visi)}`}>
-                {candidate.visi || "Visi pasangan calon belum diisi oleh panitia."}
-              </p>
+              <RichText
+                text={candidate.visi}
+                className={`font-display font-medium leading-snug ${VISI_TEXT}`}
+                markerClassName={theme.sticker}
+                empty={
+                  <p className={`font-display font-medium leading-snug text-slate-400 ${VISI_TEXT}`}>
+                    Visi pasangan calon belum diisi oleh panitia.
+                  </p>
+                }
+              />
 
               <div
-                className={`mt-[calc(var(--fit,1)*3vh)] grid gap-x-[2.5vw] gap-y-[3vh] ${
+                className={`mt-[calc(var(--fit,1)*4vh)] grid gap-x-[2.5vw] gap-y-[3vh] ${
                   misi.length > 0 && programKerja.length > 0 ? "xl:grid-cols-[1.25fr_1fr]" : ""
                 }`}
               >
@@ -314,7 +371,7 @@ export default function PaslonShowcase({ candidates, startIndex = 0, onClose, on
                   <p className={`text-[clamp(0.75rem,0.95vw,1.1rem)] font-bold uppercase tracking-[0.3em] ${theme.accent}`}>Misi</p>
                   <ol className="mt-[1.5vh] space-y-[1.2vh]">
                     {misi.map((item, i) => (
-                      <li key={i} className="flex items-start gap-[1vw] text-[calc(var(--fit,1)*clamp(0.95rem,min(1.3vw,2.3vh),1.6rem))] leading-snug">
+                      <li key={i} className="flex items-start gap-[1vw] text-[max(0.9rem,calc(var(--fit,1)*clamp(1.1rem,min(1.9vw,3.4vh),2.3rem)))] leading-snug">
                         <span
                           className={`mt-0.5 flex h-[1.8em] w-[1.8em] shrink-0 items-center justify-center rounded-xl font-display text-[0.8em] font-bold ${theme.sticker}`}
                         >
@@ -336,7 +393,7 @@ export default function PaslonShowcase({ candidates, startIndex = 0, onClose, on
                     {programKerja.map((item, i) => (
                       <span
                         key={i}
-                        className={`rounded-2xl px-[1.1vw] py-[0.8vh] text-[calc(var(--fit,1)*clamp(0.85rem,min(1.1vw,2vh),1.4rem))] font-semibold ring-1 ${theme.soft}`}
+                        className={`rounded-2xl px-[1.1vw] py-[0.8vh] text-[max(0.85rem,calc(var(--fit,1)*clamp(1rem,min(1.6vw,2.8vh),2rem)))] font-semibold ring-1 ${theme.soft}`}
                       >
                         {item}
                       </span>

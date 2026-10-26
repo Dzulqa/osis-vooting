@@ -12,6 +12,7 @@ import { BallotBox, Bunting, Confetti, FestiveBackdrop, Reveal } from "@/compone
 import CandidatePhoto from "@/components/CandidatePhoto";
 import Footer from "@/components/Footer";
 import PaslonShowcase from "@/components/PaslonShowcase";
+import RichText from "@/components/RichText";
 
 function formatSchedule(value) {
   if (!value) return "Belum dijadwalkan";
@@ -396,9 +397,19 @@ export default function LandingPage() {
                         <span aria-hidden="true" className={`mt-5 font-display text-6xl leading-none ${accent.label} opacity-40`}>
                           &ldquo;
                         </span>
-                        <p className="-mt-4 line-clamp-6 font-display text-lg font-medium leading-relaxed text-ink sm:text-xl">
-                          {candidate.visi || "Visi pasangan calon belum diisi oleh panitia."}
-                        </p>
+                        {/* Pratinjau: visi panjang dipotong halus, versi lengkap di tampilan layar penuh */}
+                        <div className="-mt-4 max-h-[13.5rem] overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)]">
+                          <RichText
+                            text={candidate.visi}
+                            className="font-display text-lg font-medium leading-relaxed text-ink sm:text-xl"
+                            markerClassName={accent.sticker}
+                            empty={
+                              <p className="font-display text-lg font-medium leading-relaxed text-ink sm:text-xl">
+                                Visi pasangan calon belum diisi oleh panitia.
+                              </p>
+                            }
+                          />
+                        </div>
 
                         <span className="mt-auto inline-flex w-fit items-center gap-2 self-start rounded-full bg-white/85 px-4 py-2 text-xs font-bold text-ink shadow-sm ring-1 ring-white">
                           ⛶ Klik untuk layar penuh
