@@ -31,8 +31,12 @@ import {
   importDptFromData,
   resetVotingSimulation,
   subscribeVotingStorage,
+  getVotes,
+  getVotedStudents,
+  getQueue,
 } from "@/lib/votingStorage";
-import { addCommittee, getAccounts, listCommittee, removeCommittee, updateAccount } from "@/lib/adminApi";
+import { refreshNow } from "@/lib/syncClient";
+import { addCommittee, clearVotes, getAccounts, listCommittee, removeCommittee, updateAccount } from "@/lib/adminApi";
 
 
 function SuperadminPageContent() {
@@ -52,6 +56,9 @@ function SuperadminPageContent() {
   const [students, setStudents] = useState([]);
 
   const [elections, setElections] = useState([]);
+  const [voteTotals, setVoteTotals] = useState({ votes: 0, voters: 0, queue: 0 });
+  const [clearConfirm, setClearConfirm] = useState("");
+  const [isClearing, setIsClearing] = useState(false);
 
   // Form inputs
   const [electionForm, setElectionForm] = useState({
@@ -116,6 +123,7 @@ function SuperadminPageContent() {
     setBooths(getBooths());
     setCandidates(getCandidatesList());
     setStudents(getStudentsList());
+    setVoteTotals({ votes: getVotes().length, voters: getVotedStudents().length, queue: getQueue().length });
   }
 
   // Panitia added before accounts moved to the database only exist in this browser's old storage.
@@ -489,6 +497,24 @@ function SuperadminPageContent() {
   }
 
   // 7. System Override & Reset Simulasi
+  // Kosongkan suara hasil simulasi (di server, satu transaksi; bilik & jadwal tetap)
+  async function handleClearVotes(e) {
+    e.preventDefault();
+    if (clearConfirm !== "KOSONGKAN" || isClearing) return;
+    setIsClearing(true);
+    const result = await clearVotes();
+    setIsClearing(false);
+
+    if (!result.ok) {
+      showBanner(`⚠️ ${result.message}`, "warning");
+      return;
+    }
+    setClearConfirm("");
+    await refreshNow();
+    const { votes, voters } = result.data.cleared;
+    showBanner(`🧹 ${votes} suara dikosongkan, ${voters} siswa bisa memilih lagi. Hasil dikunci kembali.`);
+  }
+
   function handleSystemOverride() {
     if (
       window.confirm(
@@ -737,6 +763,67 @@ function SuperadminPageContent() {
                     </li>
                   ))}
                 </ul>
+              </div>
+            </div>
+
+            {/* ZONA BERBAHAYA: KOSONGKAN SUARA */}
+            <div className="relative overflow-hidden rounded-[1.75rem] bg-white/90 p-6 shadow-[0_12px_40px_-24px_rgba(31,42,72,0.25)] ring-2 ring-rose-200/80 sm:p-8">
+              <span aria-hidden="true" className="absolute left-8 top-0 h-1.5 w-20 rounded-b-full bg-gradient-to-r from-coral to-rose-400" />
+              <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr] lg:items-start">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-coral-soft text-2xl ring-1 ring-rose-100">🧹</span>
+                    <div>
+                      <h2 className="font-display text-xl font-semibold text-ink">Kosongkan suara</h2>
+                      <p className="text-xs text-slate-500">Hapus suara hasil simulasi sebelum pemilihan sungguhan.</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-3 gap-2 text-center">
+                    {[
+                      { label: "Suara masuk", value: voteTotals.votes, icon: "🗳️" },
+                      { label: "Sudah memilih", value: voteTotals.voters, icon: "✅" },
+                      { label: "Di antrean", value: voteTotals.queue, icon: "⏳" },
+                    ].map((item) => (
+                      <div key={item.label} className="rounded-2xl bg-slate-50 px-2 py-3 ring-1 ring-slate-200/70">
+                        <p className="text-lg">{item.icon}</p>
+                        <p className="font-display text-2xl font-bold tabular-nums text-ink">{item.value}</p>
+                        <p className="text-[11px] font-semibold text-slate-500">{item.label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <ul className="mt-5 space-y-1.5 text-xs leading-relaxed text-slate-600">
+                    <li>🗑️ <span className="font-semibold text-ink">Dihapus:</span> semua suara, daftar siswa yang sudah memilih, dan antrean.</li>
+                    <li>🔒 <span className="font-semibold text-ink">Dikunci lagi:</span> hasil penghitungan harus dibuka &amp; dihitung ulang.</li>
+                    <li>✅ <span className="font-semibold text-ink">Tetap:</span> paslon, DPT, panitia, bilik &amp; kode aksesnya, jadwal.</li>
+                  </ul>
+                </div>
+
+                <form onSubmit={handleClearVotes} className="rounded-2xl bg-coral-soft/60 p-5 ring-1 ring-rose-100">
+                  <p className="text-xs font-bold text-rose-800">⚠️ Tidak bisa dibatalkan</p>
+                  <p className="mt-1 text-xs leading-relaxed text-rose-900/80">
+                    Lakukan hanya setelah simulasi, saat tidak ada siswa di dalam bilik. Ketik{" "}
+                    <code className="rounded bg-white px-1.5 py-0.5 font-bold text-rose-700">KOSONGKAN</code> untuk melanjutkan.
+                  </p>
+                  <label htmlFor="clear-confirm" className="sr-only">Ketik KOSONGKAN</label>
+                  <input
+                    id="clear-confirm"
+                    type="text"
+                    value={clearConfirm}
+                    onChange={(e) => setClearConfirm(e.target.value.toUpperCase())}
+                    placeholder="KOSONGKAN"
+                    autoComplete="off"
+                    className="mt-3 w-full rounded-xl border border-rose-200 bg-white px-3.5 py-2.5 text-sm font-bold tracking-widest text-rose-700 outline-none transition placeholder:font-normal placeholder:tracking-normal placeholder:text-rose-300 focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
+                  />
+                  <button
+                    type="submit"
+                    disabled={clearConfirm !== "KOSONGKAN" || isClearing}
+                    className="mt-3 w-full rounded-xl bg-rose-500 px-4 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-rose-200"
+                  >
+                    {isClearing ? "Mengosongkan…" : `🧹 Kosongkan ${voteTotals.votes} suara`}
+                  </button>
+                </form>
               </div>
             </div>
           </div>
@@ -1053,7 +1140,7 @@ function SuperadminPageContent() {
                           {item.role}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">Username: @{item.username}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Username: {item.username}</p>
                     </div>
 
                     <button
