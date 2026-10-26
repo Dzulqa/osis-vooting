@@ -118,9 +118,64 @@ function SuperadminPageContent() {
     setStudents(getStudentsList());
   }
 
+  // Panitia added before accounts moved to the database only exist in this browser's old storage.
+  // Create real accounts for them (the server hashes the password); returns how many were imported/skipped.
+  async function importLegacyCommittee(existing) {
+    const taken = new Set(existing.map((m) => m.username));
+    let imported = 0;
+    let skipped = 0;
+
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith("osis_committee_list")) continue;
+
+      let list = [];
+      try {
+        list = JSON.parse(localStorage.getItem(key)) || [];
+      } catch {
+        continue;
+      }
+
+      const left = [];
+      for (const member of list) {
+        const username = String(member.username || "").trim().toLowerCase();
+        if (!username || taken.has(username)) continue; // already has an account
+        const result = await addCommittee({
+          nama: member.nama,
+          username,
+          password: member.password || "",
+          role: member.role,
+        });
+        if (result.ok) {
+          imported++;
+          taken.add(username);
+        } else {
+          skipped++;
+          left.push(member);
+        }
+      }
+      if (left.length > 0) localStorage.setItem(key, JSON.stringify(left));
+      else localStorage.removeItem(key);
+    }
+    return { imported, skipped };
+  }
+
   // Panitia and the two fixed logins live in the database, not in the browser
   async function loadAccounts() {
-    const [members, accounts] = await Promise.all([listCommittee(), getAccounts()]);
+    let [members, accounts] = await Promise.all([listCommittee(), getAccounts()]);
+
+    if (members.ok) {
+      const legacy = await importLegacyCommittee(members.data.members);
+      if (legacy.imported > 0) members = await listCommittee();
+      if (legacy.imported > 0 || legacy.skipped > 0) {
+        const parts = [];
+        if (legacy.imported > 0) parts.push(`${legacy.imported} akun panitia lama dipindahkan ke database`);
+        if (legacy.skipped > 0) {
+          parts.push(`${legacy.skipped} tidak bisa dipindahkan (password kurang dari 8 karakter) — buat ulang dengan password baru`);
+        }
+        showBanner(`${legacy.skipped > 0 ? "⚠️" : "✅"} ${parts.join("; ")}.`, legacy.skipped > 0 ? "warning" : "success");
+      }
+    }
     if (members.ok) setCommittee(members.data.members);
     if (accounts.ok) {
       setSuperadminCredsForm({ username: accounts.data.superadmin?.username || "", password: "" });
