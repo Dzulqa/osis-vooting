@@ -159,8 +159,6 @@ export default function PaslonShowcase({ candidates, startIndex = 0, onClose, on
 
   if (!candidate) return null;
 
-  const kelas = [candidate.ketuaKelas, candidate.wakilKelas];
-
   return (
     <div
       ref={rootRef}
@@ -240,19 +238,37 @@ export default function PaslonShowcase({ candidates, startIndex = 0, onClose, on
             </span>
           </div>
 
-          <div className="mt-[2.5vh] grid grid-cols-[1fr_auto_1fr] items-center gap-[1.5vw] rounded-[2rem] bg-white/80 px-[2vw] py-[2vh] shadow-sm ring-1 ring-white backdrop-blur">
-            {[candidate.ketua, candidate.wakil].map((name, i) => (
-              <div key={i} className={i === 0 ? "text-right" : "text-left"} style={{ gridColumn: i === 0 ? 1 : 3, gridRow: 1 }}>
-                <p className={`text-[clamp(0.65rem,0.8vw,0.95rem)] font-bold uppercase tracking-[0.22em] ${theme.accent}`}>
-                  {i === 0 ? "Calon ketua" : "Calon wakil"}
+          {/* Kartu profil: posisi, nama, kelas — sedikit menumpuk foto */}
+          <div className="relative z-10 -mt-[7vh] grid grid-cols-2 gap-[1.2vw] px-[1.2vw]">
+            {[
+              { role: "Calon Ketua", icon: "👑", name: candidate.ketua, kelas: candidate.ketuaKelas, lead: true },
+              { role: "Calon Wakil", icon: "🤝", name: candidate.wakil, kelas: candidate.wakilKelas, lead: false },
+            ].map((person) => (
+              <div
+                key={person.role}
+                className="relative overflow-hidden rounded-[1.75rem] bg-white/95 px-[1.4vw] pb-[2vh] pt-[1.8vh] shadow-[0_24px_50px_-28px_rgba(31,42,72,0.55)] ring-1 ring-white backdrop-blur"
+              >
+                <span aria-hidden="true" className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${theme.bar}`} />
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[clamp(0.65rem,min(0.85vw,1.5vh),1rem)] font-bold uppercase tracking-[0.14em] ${
+                    person.lead ? theme.chip : `ring-1 ${theme.soft} ${theme.accent}`
+                  }`}
+                >
+                  <span aria-hidden="true" className="text-[1.15em] normal-case">{person.icon}</span>
+                  {person.role}
+                </span>
+                <p className="mt-[1.2vh] line-clamp-2 font-display text-[clamp(1.1rem,min(1.75vw,3.1vh),2.4rem)] font-bold leading-tight">
+                  {person.name}
                 </p>
-                <p className="mt-1 font-display text-[clamp(1.25rem,2.1vw,2.75rem)] font-bold leading-tight">{name}</p>
-                {kelas[i] && <p className="mt-0.5 text-[clamp(0.75rem,0.95vw,1.15rem)] font-semibold text-slate-500">{kelas[i]}</p>}
+                <p className="mt-[0.8vh] inline-flex items-center gap-1.5 rounded-lg bg-slate-100/80 px-2.5 py-1 text-[clamp(0.7rem,min(0.9vw,1.6vh),1.1rem)] font-semibold text-slate-600">
+                  <span aria-hidden="true">🎓</span>
+                  {person.kelas || "Kelas belum diisi"}
+                </p>
               </div>
             ))}
             <span
               aria-hidden="true"
-              className={`col-start-2 row-start-1 flex h-[clamp(2.5rem,3.5vw,4rem)] w-[clamp(2.5rem,3.5vw,4rem)] items-center justify-center rounded-full font-display text-[clamp(1.1rem,1.6vw,2rem)] font-bold shadow-md ${theme.sticker}`}
+              className={`absolute left-1/2 top-1/2 flex h-[clamp(2.25rem,3vw,3.5rem)] w-[clamp(2.25rem,3vw,3.5rem)] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full font-display text-[clamp(1rem,1.4vw,1.75rem)] font-bold shadow-lg ring-4 ring-white ${theme.sticker}`}
             >
               &amp;
             </span>
@@ -262,13 +278,23 @@ export default function PaslonShowcase({ candidates, startIndex = 0, onClose, on
         {/* Slogan & visi */}
         <section ref={fitRef} className="fx-rise flex min-h-0 flex-col gap-[calc(var(--fit,1)*2.5vh)]" style={{ "--delay": "120ms" }}>
           {candidate.slogan && (
-            <div className="relative">
-              <p className={`text-[clamp(0.75rem,0.95vw,1.1rem)] font-bold uppercase tracking-[0.3em] ${theme.accent}`}>Slogan</p>
-              <p className="mt-2 font-display text-[calc(var(--fit,1)*clamp(1.75rem,min(4.2vw,7.5vh),5.5rem))] font-bold leading-[1.05] tracking-tight">
-                &ldquo;{candidate.slogan}&rdquo;
-              </p>
-              <span aria-hidden="true" className={`mt-3 block h-2 w-32 rounded-full bg-gradient-to-r ${theme.bar}`} />
-            </div>
+            <figure className="relative flex items-center gap-[1.2vw] overflow-hidden rounded-[1.75rem] bg-white/85 py-[1.8vh] pl-[1.6vw] pr-[2vw] shadow-[0_20px_44px_-30px_rgba(31,42,72,0.5)] ring-1 ring-white backdrop-blur">
+              <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-2 bg-gradient-to-b ${theme.bar}`} />
+              <span
+                aria-hidden="true"
+                className={`flex h-[clamp(2.5rem,min(3.4vw,6vh),4rem)] w-[clamp(2.5rem,min(3.4vw,6vh),4rem)] shrink-0 items-center justify-center overflow-hidden rounded-2xl font-display text-[clamp(3rem,min(4.6vw,8vh),5.5rem)] leading-none ${theme.sticker}`}
+              >
+                <span className="translate-y-[0.22em]">&ldquo;</span>
+              </span>
+              <div className="min-w-0">
+                <figcaption className={`text-[clamp(0.65rem,min(0.8vw,1.4vh),0.95rem)] font-bold uppercase tracking-[0.3em] ${theme.accent}`}>
+                  Slogan
+                </figcaption>
+                <blockquote className="mt-0.5 line-clamp-2 font-display text-[calc(var(--fit,1)*clamp(1.05rem,min(1.75vw,3.1vh),2.2rem))] font-semibold italic leading-snug">
+                  {candidate.slogan}
+                </blockquote>
+              </div>
+            </figure>
           )}
 
           <div className="flex min-h-0 flex-1 flex-col rounded-[2.25rem] bg-white/80 p-[2.2vw] shadow-[0_30px_60px_-40px_rgba(31,42,72,0.45)] ring-1 ring-white backdrop-blur">
