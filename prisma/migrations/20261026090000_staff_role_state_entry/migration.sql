@@ -7,10 +7,14 @@ DROP INDEX `Voter_electionId_className_name_idx` ON `Voter`;
 -- AlterTable
 ALTER TABLE `User` ADD COLUMN `staffRole` ENUM('SUPERADMIN', 'KETUA', 'REGISTRATOR', 'CALLER', 'SAKSI') NULL;
 
--- AlterTable
+-- AlterTable: Voter.className is replaced by Voter.classroom (same type). Copy the values
+-- across before the old column is dropped so no class names are lost.
+-- allow-destructive: Voter.className is dropped only after its values are copied into Voter.classroom
+ALTER TABLE `Voter` ADD COLUMN `classroom` VARCHAR(80) NULL;
+UPDATE `Voter` SET `classroom` = `className` WHERE `classroom` IS NULL;
+
 ALTER TABLE `Voter` DROP COLUMN `className`,
     ADD COLUMN `active` BOOLEAN NOT NULL DEFAULT true,
-    ADD COLUMN `classroom` VARCHAR(80) NULL,
     ADD COLUMN `classroomId` INTEGER NULL,
     ADD COLUMN `code` VARCHAR(50) NULL,
     ADD COLUMN `competencyId` INTEGER NULL,
@@ -64,6 +68,9 @@ CREATE INDEX `Voter_electionId_classroomId_name_idx` ON `Voter`(`electionId`, `c
 
 -- AddForeignKey
 ALTER TABLE `Classroom` ADD CONSTRAINT `Classroom_electionId_fkey` FOREIGN KEY (`electionId`) REFERENCES `Election`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey (dropped at the top so the old index could go; restore it)
+ALTER TABLE `Voter` ADD CONSTRAINT `Voter_electionId_fkey` FOREIGN KEY (`electionId`) REFERENCES `Election`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 
 
