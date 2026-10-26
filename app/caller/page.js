@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Navbar from "@/components/Navbar";
 import AuthGuard from "@/components/AuthGuard";
 import { DashboardHero, DashboardShell } from "@/components/Dashboard";
@@ -29,6 +29,7 @@ function CallerPageContent() {
 
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedBooth, setSelectedBooth] = useState(null);
+  const boothLabel = (id) => `Bilik ${String(id).padStart(2, "0")}`;
 
   function loadData() {
     setQueue(getQueue());
@@ -54,37 +55,56 @@ function CallerPageContent() {
     return unsubscribe;
   }, []);
 
-  function handleSelectStudent(student) {
-    setSelectedStudent(student);
+  const [flash, setFlash] = useState(null); // { tone: "ok" | "error", text }
+  const flashTimer = useRef(null);
+
+  function showFlash(tone, text) {
+    setFlash({ tone, text });
+    clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlash(null), 3500);
+  }
+
+  // Student and booth can be picked in either order; picking the second one assigns right away
+  function assign(student, booth) {
+    const success = assignStudentToBooth(student, booth.id);
+
+    setSelectedStudent(null);
     setSelectedBooth(null);
+
+    if (success) {
+      showFlash("ok", `${student.nama} → ${boothLabel(booth.id)}`);
+    } else {
+      showFlash("error", `${student.nama} tidak bisa diarahkan ke ${boothLabel(booth.id)}. Coba bilik lain.`);
+    }
+
+    loadData();
+  }
+
+  function handleSelectStudent(student) {
+    if (selectedStudent?.id === student.id) {
+      setSelectedStudent(null);
+      return;
+    }
+    if (selectedBooth) {
+      assign(student, selectedBooth);
+      return;
+    }
+    setSelectedStudent(student);
   }
 
   function handleSelectBooth(booth) {
     if (booth.status !== "waiting") {
       return;
     }
-
+    if (selectedBooth?.id === booth.id) {
+      setSelectedBooth(null);
+      return;
+    }
+    if (selectedStudent) {
+      assign(selectedStudent, booth);
+      return;
+    }
     setSelectedBooth(booth);
-  }
-
-  function handleAssign() {
-    if (!selectedStudent || !selectedBooth) {
-      return;
-    }
-
-    const success = assignStudentToBooth(
-      selectedStudent,
-      selectedBooth.id
-    );
-
-    if (!success) {
-      return;
-    }
-
-    setSelectedStudent(null);
-    setSelectedBooth(null);
-
-    loadData();
   }
 
   function handleActivateBooth(boothId) {
@@ -95,7 +115,16 @@ function CallerPageContent() {
   const freeCount = booths.filter((b) => b.status === "waiting").length;
   const assignedCount = booths.filter((b) => b.status === "assigned").length;
   const activeCount = booths.filter((b) => b.status === "active").length;
-  const boothLabel = (id) => `Bilik ${String(id).padStart(2, "0")}`;
+  const statusOrder = { waiting: 0, assigned: 1, active: 2 };
+  const sortedBooths = [...booths].sort(
+    (a, b) => (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3) || a.id - b.id
+  );
+
+  const hint = selectedStudent
+    ? `Ketuk bilik hijau untuk ${selectedStudent.nama}.`
+    : selectedBooth
+    ? `Ketuk siswa untuk ${boothLabel(selectedBooth.id)}.`
+    : "Ketuk siswa, lalu ketuk bilik hijau. Langsung diarahkan.";
 
   return (
     <DashboardShell>
@@ -122,198 +151,192 @@ function CallerPageContent() {
             emoji="📣"
             badge={`${queue.length} siswa menunggu`}
             title="Meja pemanggil"
-            description="Pilih siswa dari antrean, lalu ketuk bilik yang kosong."
+            description="Ketuk siswa, lalu ketuk bilik yang kosong. Siswa langsung diarahkan."
           />
         </div>
 
-        {/* =========================
-            STATUS BILIK (selalu terlihat)
-        ========================== */}
-        <section className="rounded-[1.75rem] bg-white p-5 shadow-md ring-1 ring-violet-100 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">Status Bilik</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                {selectedStudent
-                  ? `Ketuk bilik hijau untuk ${selectedStudent.nama}.`
-                  : "Bilik hijau siap dipakai."}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2 text-xs font-bold">
-              <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700 ring-1 ring-emerald-200">
-                {freeCount} tersedia
-              </span>
-              <span className="rounded-full bg-amber-50 px-3 py-1.5 text-amber-700 ring-1 ring-amber-200">
-                {assignedCount} menunggu
-              </span>
-              <span className="rounded-full bg-violet-50 px-3 py-1.5 text-violet-700 ring-1 ring-violet-200">
-                {activeCount} aktif
-              </span>
-            </div>
-          </div>
-
-          {booths.length === 0 ? (
-            <div className="mt-5 flex min-h-24 items-center justify-center rounded-2xl bg-slate-50">
-              <p className="text-sm text-slate-400">Belum ada bilik yang disiapkan.</p>
-            </div>
-          ) : (
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-              {booths.map((booth) => {
-                const available = booth.status === "waiting";
-                const isSelected = selectedBooth?.id === booth.id;
-                const tone = available
-                  ? isSelected
-                    ? "border-violet-500 bg-violet-50 ring-4 ring-violet-200"
-                    : "border-emerald-300 bg-emerald-50/70 hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-md"
-                  : booth.status === "assigned"
-                  ? "border-amber-200 bg-amber-50/60"
-                  : "border-violet-200 bg-violet-50/50";
-
-                return (
-                  <button
-                    key={booth.id}
-                    type="button"
-                    disabled={!available}
-                    onClick={() => handleSelectBooth(booth)}
-                    className={`relative flex min-h-28 flex-col rounded-2xl border-2 p-3 text-left transition disabled:cursor-default ${tone}`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-2xl font-black leading-none text-slate-800">
-                        {String(booth.id).padStart(2, "0")}
-                      </span>
-                      <span
-                        className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                          available
-                            ? "bg-emerald-500 text-white"
-                            : booth.status === "assigned"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-violet-100 text-violet-700"
-                        }`}
-                      >
-                        {!available && (
-                          <span
-                            className={`h-1.5 w-1.5 animate-pulse rounded-full ${
-                              booth.status === "assigned" ? "bg-amber-500" : "bg-violet-500"
-                            }`}
-                          />
-                        )}
-                        {available ? "Tersedia" : booth.status === "assigned" ? "Menunggu" : "Memilih"}
-                      </span>
-                    </div>
-
-                    <div className="mt-auto pt-3">
-                      {available ? (
-                        <p className="text-xs font-semibold text-emerald-700">
-                          {isSelected ? "✓ Tujuan dipilih" : "Kosong"}
-                        </p>
-                      ) : booth.student ? (
-                        <>
-                          <p className="truncate text-sm font-semibold text-slate-700" title={booth.student.nama}>
-                            {booth.student.nama}
-                          </p>
-                          <p className="truncate text-[11px] text-slate-400">{booth.student.kelas}</p>
-                        </>
-                      ) : null}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* =========================
-            ANTRIAN PEMILIH
-        ========================== */}
-        <section className="mt-6 rounded-[1.75rem] bg-white p-5 shadow-md ring-1 ring-violet-100 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">Antrian Pemilih</h2>
-              <p className="mt-1 text-sm text-slate-500">Pilih siswa yang akan dipanggil.</p>
-            </div>
-            <div className="rounded-full bg-violet-50 px-4 py-2 text-sm font-bold text-violet-600">
-              {queue.length} siswa
-            </div>
-          </div>
-
-          {queue.length === 0 ? (
-            <div className="mt-5 flex min-h-32 items-center justify-center rounded-2xl bg-slate-50">
-              <p className="text-sm text-slate-400">Tidak ada siswa dalam antrian.</p>
-            </div>
-          ) : (
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {queue.map((student, index) => {
-                const isSelected = selectedStudent?.id === student.id;
-
-                return (
-                  <button
-                    key={student.id}
-                    type="button"
-                    onClick={() => handleSelectStudent(student)}
-                    className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${
-                      isSelected
-                        ? "border-violet-500 bg-violet-50 ring-4 ring-violet-100"
-                        : "border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/40"
-                    }`}
-                  >
-                    <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black ${
-                        isSelected ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      {index + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-bold text-slate-900">{student.nama}</p>
-                      <p className="truncate text-xs text-slate-500">
-                        NIS {student.nis}
-                        {" • "}
-                        {student.kelas}
-                      </p>
-                    </div>
-                    {isSelected && (
-                      <span className="rounded-full bg-violet-600 px-2.5 py-1 text-[11px] font-bold text-white">
-                        Dipilih
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* =========================
-            AKSI (menempel di bawah layar)
-        ========================== */}
-        <div className="sticky bottom-4 z-20 mt-6">
-          <div className="flex flex-col gap-3 rounded-2xl bg-white/95 p-4 shadow-xl ring-1 ring-violet-200 backdrop-blur sm:flex-row sm:items-center">
-            <div className="flex min-w-0 flex-1 items-center gap-3 text-sm">
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Pemilih</p>
-                <p className={`truncate font-semibold ${selectedStudent ? "text-slate-800" : "text-slate-400"}`}>
-                  {selectedStudent ? selectedStudent.nama : "Pilih dari antrean"}
-                </p>
-              </div>
-              <span className="text-lg text-violet-300">→</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tujuan</p>
-                <p className={`truncate font-semibold ${selectedBooth ? "text-slate-800" : "text-slate-400"}`}>
-                  {selectedBooth ? boothLabel(selectedBooth.id) : freeCount ? "Ketuk bilik hijau" : "Semua bilik terisi"}
-                </p>
-              </div>
-            </div>
-
+        {/* PETUNJUK & HASIL */}
+        <div
+          className={`mb-6 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold ring-1 transition ${
+            flash?.tone === "ok"
+              ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+              : flash?.tone === "error"
+              ? "bg-rose-50 text-rose-700 ring-rose-200"
+              : selectedStudent || selectedBooth
+              ? "bg-violet-50 text-violet-700 ring-violet-200"
+              : "bg-white text-slate-500 ring-slate-200"
+          }`}
+          aria-live="polite"
+        >
+          <span className="text-lg">{flash?.tone === "ok" ? "✅" : flash?.tone === "error" ? "⚠️" : "👉"}</span>
+          <span className="min-w-0 flex-1">{flash ? flash.text : hint}</span>
+          {(selectedStudent || selectedBooth) && !flash && (
             <button
               type="button"
-              onClick={handleAssign}
-              disabled={!selectedStudent || !selectedBooth}
-              className="w-full rounded-xl bg-violet-600 px-6 py-3 font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 sm:w-auto"
+              onClick={() => {
+                setSelectedStudent(null);
+                setSelectedBooth(null);
+              }}
+              className="rounded-lg px-2 py-1 text-xs font-bold text-violet-600 hover:bg-violet-100"
             >
-              Arahkan ke Bilik
+              Batal
             </button>
-          </div>
+          )}
+        </div>
+
+        <div className="grid items-start gap-6 lg:grid-cols-[1fr_380px]">
+
+          {/* =========================
+              ANTRIAN PEMILIH
+          ========================== */}
+          <section className="rounded-[1.75rem] bg-white p-5 shadow-md ring-1 ring-violet-100 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Antrian Pemilih</h2>
+                <p className="mt-1 text-sm text-slate-500">Ketuk siswa yang akan dipanggil.</p>
+              </div>
+              <div className="rounded-full bg-violet-50 px-4 py-2 text-sm font-bold text-violet-600">
+                {queue.length} siswa
+              </div>
+            </div>
+
+            {queue.length === 0 ? (
+              <div className="mt-5 flex min-h-32 items-center justify-center rounded-2xl bg-slate-50">
+                <p className="text-sm text-slate-400">Tidak ada siswa dalam antrian.</p>
+              </div>
+            ) : (
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {queue.map((student, index) => {
+                  const isSelected = selectedStudent?.id === student.id;
+
+                  return (
+                    <button
+                      key={student.id}
+                      type="button"
+                      onClick={() => handleSelectStudent(student)}
+                      className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${
+                        isSelected
+                          ? "border-violet-500 bg-violet-50 ring-4 ring-violet-100"
+                          : "border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/40"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black ${
+                          isSelected ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-bold text-slate-900">{student.nama}</p>
+                        <p className="truncate text-xs text-slate-500">
+                          NIS {student.nis}
+                          {" • "}
+                          {student.kelas}
+                        </p>
+                      </div>
+                      {isSelected && (
+                        <span className="rounded-full bg-violet-600 px-2.5 py-1 text-[11px] font-bold text-white">
+                          Dipilih
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* =========================
+              STATUS BILIK (kosong di atas)
+          ========================== */}
+          <section className="rounded-[1.75rem] bg-white p-5 shadow-md ring-1 ring-violet-100 sm:p-6 lg:sticky lg:top-6">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Status Bilik</h2>
+              <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-bold">
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700 ring-1 ring-emerald-200">
+                  {freeCount} tersedia
+                </span>
+                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700 ring-1 ring-amber-200">
+                  {assignedCount} menunggu
+                </span>
+                <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700 ring-1 ring-violet-200">
+                  {activeCount} memilih
+                </span>
+              </div>
+            </div>
+
+            {booths.length === 0 ? (
+              <div className="mt-5 flex min-h-24 items-center justify-center rounded-2xl bg-slate-50">
+                <p className="text-sm text-slate-400">Belum ada bilik yang disiapkan.</p>
+              </div>
+            ) : (
+              <div className="mt-5 grid grid-cols-2 gap-2.5">
+                {sortedBooths.map((booth) => {
+                  const available = booth.status === "waiting";
+                  const isSelected = selectedBooth?.id === booth.id;
+                  const tone = available
+                    ? isSelected
+                      ? "border-violet-500 bg-violet-50 ring-4 ring-violet-200"
+                      : selectedStudent
+                      ? "border-emerald-400 bg-emerald-50 shadow-sm shadow-emerald-100 hover:-translate-y-0.5 hover:shadow-md"
+                      : "border-emerald-300 bg-emerald-50/70 hover:-translate-y-0.5 hover:border-emerald-400"
+                    : booth.status === "assigned"
+                    ? "border-amber-200 bg-amber-50/60"
+                    : "border-violet-200 bg-violet-50/50";
+
+                  return (
+                    <button
+                      key={booth.id}
+                      type="button"
+                      disabled={!available}
+                      onClick={() => handleSelectBooth(booth)}
+                      className={`flex min-h-24 flex-col rounded-2xl border-2 p-3 text-left transition disabled:cursor-default ${tone}`}
+                    >
+                      <div className="flex items-start justify-between gap-1">
+                        <span className="text-xl font-black leading-none text-slate-800">
+                          {String(booth.id).padStart(2, "0")}
+                        </span>
+                        <span
+                          className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            available
+                              ? "bg-emerald-500 text-white"
+                              : booth.status === "assigned"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-violet-100 text-violet-700"
+                          }`}
+                        >
+                          {!available && (
+                            <span
+                              className={`h-1.5 w-1.5 animate-pulse rounded-full ${
+                                booth.status === "assigned" ? "bg-amber-500" : "bg-violet-500"
+                              }`}
+                            />
+                          )}
+                          {available ? "Tersedia" : booth.status === "assigned" ? "Menunggu" : "Memilih"}
+                        </span>
+                      </div>
+
+                      <div className="mt-auto pt-2">
+                        {available ? (
+                          <p className="text-xs font-semibold text-emerald-700">
+                            {isSelected ? "✓ Dipilih" : selectedStudent ? "Ketuk untuk arahkan" : "Kosong"}
+                          </p>
+                        ) : booth.student ? (
+                          <>
+                            <p className="truncate text-sm font-semibold text-slate-700" title={booth.student.nama}>
+                              {booth.student.nama}
+                            </p>
+                            <p className="truncate text-[11px] text-slate-400">{booth.student.kelas}</p>
+                          </>
+                        ) : null}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         </div>
       </div>
     </DashboardShell>
