@@ -64,6 +64,9 @@ model User {
   name               String    @db.VarChar(150)
   // Global role is only meaningful for SUPERADMIN; everyone else gets a role per election via ElectionMember.
   isSuperadmin       Boolean   @default(false)
+  // Panitia / Ketua OSIS role. Null for the superadmin. Accounts are global; the election itself is
+  // handled by the synced state (StateEntry), so the role does not depend on a per-election row.
+  staffRole          UserRole?
   active             Boolean   @default(true)
   mustChangePassword Boolean   @default(true)
   failedLoginCount   Int       @default(0)
@@ -344,4 +347,17 @@ model AuditLog {
 
   @@index([electionId, createdAt])
   @@index([action])
+}
+
+// ---------------------------------------------------------------- shared event state
+// One row per synced browser-storage key (queue, booth status, votes, event config, ...).
+// Values are JSON text. `version` increments on every write; clients poll by `updatedAt`.
+model StateEntry {
+  key         String   @id @db.VarChar(191)
+  value       String   @db.LongText
+  version     Int      @default(1)
+  updatedAt   DateTime @default(now()) @updatedAt @db.DateTime(3)
+  updatedById Int?
+
+  @@index([updatedAt])
 }

@@ -8,11 +8,9 @@ import {
   loginUser,
   getAuthSession,
   getHomePathForRole,
-  getBooths,
   getBoothSession,
   isBoothSessionValid,
   loginBooth,
-  subscribeVotingStorage,
 } from "@/lib/votingStorage";
 
 const CODE_LENGTH = 6;
@@ -67,12 +65,23 @@ function LoginForm() {
       return;
     }
 
+    // Daftar bilik datang dari server (nomor saja, tanpa kode), jadi sama di semua perangkat
+    let cancelled = false;
     function loadBooths() {
-      setBooths(getBooths());
+      fetch("/api/booths/public", { cache: "no-store" })
+        .then((res) => res.json())
+        .then((body) => {
+          if (!cancelled && body?.data?.booths) setBooths(body.data.booths);
+        })
+        .catch(() => {});
     }
 
     loadBooths();
-    return subscribeVotingStorage(loadBooths);
+    const refresh = setInterval(loadBooths, 10000);
+    return () => {
+      cancelled = true;
+      clearInterval(refresh);
+    };
   }, [redirectPath, requestedBooth, mode]);
 
   function switchMode(next) {
@@ -86,7 +95,7 @@ function LoginForm() {
     codeInputRef.current?.focus();
   }
 
-  function handleBoothSubmit(e) {
+  async function handleBoothSubmit(e) {
     e.preventDefault();
 
     if (!boothId) {
@@ -101,7 +110,7 @@ function LoginForm() {
 
     setStatus("loading");
 
-    const res = loginBooth(boothId, accessCode);
+    const res = await loginBooth(boothId, accessCode);
 
     if (res.success) {
       setErrorMessage("");
@@ -119,7 +128,7 @@ function LoginForm() {
     setErrorCount((count) => count + 1);
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
 
     if (!username.trim() || !password.trim()) {
@@ -130,7 +139,7 @@ function LoginForm() {
     setStatus("loading");
 
     // Peran ditentukan dari akun, bukan dari pilihan di form
-    const res = loginUser(username, password);
+    const res = await loginUser(username, password);
 
     if (res.success) {
       setErrorMessage("");
@@ -139,7 +148,7 @@ function LoginForm() {
     } else {
       setStatus("idle");
       setPassword("");
-      showError("Username atau password salah. Periksa lagi lalu coba masuk.");
+      showError(res.message || "Username atau password salah. Periksa lagi lalu coba masuk.");
     }
   }
 

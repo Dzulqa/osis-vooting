@@ -91,8 +91,8 @@ export default function VotingBooth({ boothId }) {
 
     setVoteStatus("submitting");
 
-    setTimeout(() => {
-      const success = saveVote({
+    setTimeout(async () => {
+      const success = await saveVote({
         candidateId: voteCandidate.id,
         boothId: boothId,
         studentId: currentBooth.student.id,

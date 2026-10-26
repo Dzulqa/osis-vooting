@@ -18,9 +18,6 @@ import {
   setCurrentElection,
   getKetuaOsisIdentity,
   saveKetuaOsisIdentity,
-  getCommitteeList,
-  addCommitteeMember,
-  removeCommitteeMember,
   getBooths,
   addBooth,
   removeBooth,
@@ -34,9 +31,8 @@ import {
   importDptFromData,
   resetVotingSimulation,
   subscribeVotingStorage,
-  getAuthCreds,
-  saveAuthCreds,
 } from "@/lib/votingStorage";
+import { addCommittee, getAccounts, listCommittee, removeCommittee, updateAccount } from "@/lib/adminApi";
 
 
 function SuperadminPageContent() {
@@ -62,7 +58,6 @@ function SuperadminPageContent() {
     academicYear: "",
     name: "",
     copyBooths: true,
-    copyCommittee: true,
   });
   const [isConfirmingElection, setIsConfirmingElection] = useState(false);
   const [ketuaForm, setKetuaForm] = useState({
@@ -118,21 +113,24 @@ function SuperadminPageContent() {
     setKetuaOsisState(ketua);
     setKetuaForm(ketua);
 
-    setCommittee(getCommitteeList());
     setBooths(getBooths());
     setCandidates(getCandidatesList());
     setStudents(getStudentsList());
-
-    const creds = getAuthCreds();
-    setSuperadminCredsForm({
-      username: creds.superadmin.username,
-      password: creds.superadmin.password,
-    });
-    setKetuaCredsForm({
-      username: creds.ketua.username,
-      password: creds.ketua.password,
-    });
   }
+
+  // Panitia and the two fixed logins live in the database, not in the browser
+  async function loadAccounts() {
+    const [members, accounts] = await Promise.all([listCommittee(), getAccounts()]);
+    if (members.ok) setCommittee(members.data.members);
+    if (accounts.ok) {
+      setSuperadminCredsForm({ username: accounts.data.superadmin?.username || "", password: "" });
+      setKetuaCredsForm({ username: accounts.data.ketua?.username || "", password: "" });
+    }
+  }
+
+  useEffect(() => {
+    queueMicrotask(loadAccounts);
+  }, []);
 
 
   // Tahun ajaran yang sudah punya pemilihan tidak bisa dibuka lagi
@@ -230,7 +228,7 @@ function SuperadminPageContent() {
       return;
     }
 
-    setElectionForm({ academicYear: "", name: "", copyBooths: true, copyCommittee: true });
+    setElectionForm({ academicYear: "", name: "", copyBooths: true });
     // Ambil DPT terbaru dari Sinar untuk pemilihan baru
     sinar.refresh(true);
     showBanner(
@@ -247,29 +245,26 @@ function SuperadminPageContent() {
     showBanner(`🔁 Sekarang mengelola ${election.name}.`);
   }
 
-  // 1b. Manajemen Creds Auth
+  // 1b. Manajemen Creds Auth (disimpan di database; kosongkan password bila tidak diganti)
+  async function saveAccount(who, form, successMessage) {
+    if (!form.username.trim()) return;
+    const result = await updateAccount(who, { username: form.username.trim(), password: form.password });
+    if (!result.ok) {
+      showBanner(`⚠️ ${result.message}`, "warning");
+      return;
+    }
+    await loadAccounts();
+    showBanner(successMessage);
+  }
+
   function handleSaveSuperadminCreds(e) {
     e.preventDefault();
-    if (!superadminCredsForm.username.trim() || !superadminCredsForm.password.trim()) return;
-    saveAuthCreds({
-      superadmin: {
-        username: superadminCredsForm.username.trim(),
-        password: superadminCredsForm.password.trim(),
-      },
-    });
-    showBanner("✅ Password & Username Superadmin berhasil diperbarui!");
+    saveAccount("superadmin", superadminCredsForm, "✅ Akun Superadmin berhasil diperbarui!");
   }
 
   function handleSaveKetuaCreds(e) {
     e.preventDefault();
-    if (!ketuaCredsForm.username.trim() || !ketuaCredsForm.password.trim()) return;
-    saveAuthCreds({
-      ketua: {
-        username: ketuaCredsForm.username.trim(),
-        password: ketuaCredsForm.password.trim(),
-      },
-    });
-    showBanner("👑 Password & Username Ketua OSIS berhasil diperbarui!");
+    saveAccount("ketua", ketuaCredsForm, "👑 Akun Ketua OSIS berhasil diperbarui!");
   }
 
 
@@ -285,33 +280,40 @@ function SuperadminPageContent() {
   }
 
   // 3. Panitia
-  function handleAddCommittee(e) {
+  async function handleAddCommittee(e) {
     e.preventDefault();
     const person = personOptions.find((p) => p.value === committeeForm.person);
-    if (!person || !committeeForm.password.trim()) return;
-
-    // Username diturunkan dari NIS / kode guru Sinar, bukan diketik bebas
-    const [type, refId] = committeeForm.person.split(":");
-    const username = String(refId).toLowerCase();
-
-    if (committee.some((m) => m.username === username)) {
-      showBanner("⚠️ Orang ini sudah terdaftar sebagai panitia.", "warning");
+    if (!person) return;
+    if (committeeForm.password.length < 8) {
+      showBanner("⚠️ Password minimal 8 karakter.", "warning");
       return;
     }
-    addCommitteeMember({
+
+    // Username diturunkan dari NIS / kode guru Sinar, bukan diketik bebas
+    const username = String(committeeForm.person.split(":")[1]).toLowerCase();
+
+    const result = await addCommittee({
       nama: person.label,
       username,
-      password: committeeForm.password.trim(),
+      password: committeeForm.password,
       role: committeeForm.role,
-      sinarType: type,
-      sinarId: refId,
     });
+    if (!result.ok) {
+      showBanner(`⚠️ ${result.message}`, "warning");
+      return;
+    }
     setCommitteeForm({ person: "", password: "", role: "Registrator" });
+    await loadAccounts();
     showBanner("👤 Akun Panitia baru berhasil ditambahkan!");
   }
 
-  function handleRemoveCommittee(id) {
-    removeCommitteeMember(id);
+  async function handleRemoveCommittee(id) {
+    const result = await removeCommittee(id);
+    if (!result.ok) {
+      showBanner(`⚠️ ${result.message}`, "warning");
+      return;
+    }
+    await loadAccounts();
     showBanner("🗑️ Panitia berhasil dihapus.", "warning");
   }
 
@@ -575,7 +577,6 @@ function SuperadminPageContent() {
                   <div className="grid gap-2 sm:grid-cols-2">
                     {[
                       { key: "copyBooths", label: "Salin bilik suara", hint: "Kode akses tetap, perangkat tidak perlu login ulang" },
-                      { key: "copyCommittee", label: "Salin akun panitia", hint: "Registrator, caller, dan saksi" },
                     ].map((opt) => (
                       <label
                         key={opt.key}
@@ -726,11 +727,13 @@ function SuperadminPageContent() {
                     Password Superadmin Baru
                   </label>
                   <input
-                    type="text"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    placeholder="Kosongkan jika tidak diganti (min. 8 karakter)"
                     value={superadminCredsForm.password}
                     onChange={(e) => setSuperadminCredsForm({ ...superadminCredsForm, password: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-violet-500 font-mono"
-                    required
                   />
                 </div>
 
@@ -778,11 +781,13 @@ function SuperadminPageContent() {
                     Password Ketua OSIS Baru
                   </label>
                   <input
-                    type="text"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    placeholder="Kosongkan jika tidak diganti (min. 8 karakter)"
                     value={ketuaCredsForm.password}
                     onChange={(e) => setKetuaCredsForm({ ...ketuaCredsForm, password: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-amber-500 font-mono"
-                    required
                   />
                 </div>
 
@@ -943,7 +948,8 @@ function SuperadminPageContent() {
                     type="text"
                     value={committeeForm.password}
                     onChange={(e) => setCommitteeForm({ ...committeeForm, password: e.target.value })}
-                    placeholder="Password..."
+                    placeholder="Min. 8 karakter"
+                    minLength={8}
                     required
                     className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-violet-500 font-mono"
                   />
@@ -993,11 +999,6 @@ function SuperadminPageContent() {
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">Username: @{item.username}</p>
-                      {!item.password && (
-                        <p className="text-[11px] font-semibold text-amber-600 mt-0.5">
-                          ⚠️ Belum punya password — hapus &amp; buat ulang agar bisa login.
-                        </p>
-                      )}
                     </div>
 
                     <button

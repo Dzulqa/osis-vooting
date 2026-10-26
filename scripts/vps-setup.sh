@@ -40,6 +40,11 @@ BOOTH_TOKEN_TTL_DAYS=3
 AUTH_COOKIE_SECURE=true
 APP_ORIGIN="https://$DOMAIN"
 UPLOAD_DIR="$BASE/shared/uploads"
+
+# First-run accounts: created on the first login attempt when the database has no users yet.
+SEED_SUPERADMIN_USERNAME="superadmin"
+SEED_SUPERADMIN_PASSWORD=""   # REQUIRED, min 8 characters
+SEED_KETUA_PASSWORD=""        # optional; defaults to the superadmin password
 EOF
   chmod 600 "$BASE/shared/.env"
   echo "created $BASE/shared/.env  <-- EDIT IT NOW"

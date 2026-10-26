@@ -52,5 +52,11 @@ if ! ls "$STAGE"/node_modules/.prisma/client/libquery_engine-*.so.node >/dev/nul
   exit 1
 fi
 
+# Password hashing (login) is a native module; its Linux build must be traced into the release
+if ! ls "$STAGE"/node_modules/@node-rs/argon2-linux-*/ >/dev/null 2>&1; then
+  echo "@node-rs/argon2 Linux binding missing from the release" >&2
+  exit 1
+fi
+
 tar -C "$STAGE" -czf "$OUT" .
 du -h "$OUT"
