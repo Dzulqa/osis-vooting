@@ -306,83 +306,99 @@ function CallerPageContent() {
                       ? "border-emerald-400 bg-emerald-50 shadow-sm shadow-emerald-100 hover:shadow-md"
                       : "border-emerald-300 bg-emerald-50/70 hover:border-emerald-400"
                     : booth.status === "assigned"
-                    ? "border-amber-200 bg-amber-50/60"
-                    : "border-violet-200 bg-violet-50/50";
+                    ? "border-amber-300 bg-white"
+                    : "border-violet-300 bg-white";
 
-                  const Row = available ? "button" : "div";
                   const confirming = confirmCancelId === booth.id;
-
-                  return (
-                    <Row
-                      key={booth.id}
-                      {...(available ? { type: "button", onClick: () => handleSelectBooth(booth) } : {})}
-                      className={`flex w-full items-center gap-3 rounded-2xl border-2 p-3 text-left transition ${tone}`}
+                  const badge = (
+                    <span
+                      className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl leading-none ${
+                        available
+                          ? "bg-emerald-500 text-white"
+                          : booth.status === "assigned"
+                          ? "bg-amber-400 text-white"
+                          : "bg-violet-500 text-white"
+                      }`}
                     >
-                      <span
-                        className={`flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl leading-none ${
-                          available
-                            ? "bg-emerald-500 text-white"
-                            : booth.status === "assigned"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-violet-100 text-violet-700"
-                        }`}
-                      >
-                        <span className="text-[9px] font-bold uppercase tracking-wider opacity-80">Bilik</span>
-                        <span className="text-lg font-black">{String(booth.id).padStart(2, "0")}</span>
-                      </span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider opacity-90">Bilik</span>
+                      <span className="text-xl font-black">{String(booth.id).padStart(2, "0")}</span>
+                    </span>
+                  );
 
-                      <div className="min-w-0 flex-1">
-                        {available ? (
-                          <p className="text-sm font-semibold text-emerald-700">
-                            {isSelected ? "✓ Dipilih" : selectedStudent ? "Ketuk untuk arahkan" : "Kosong"}
+                  // Bilik kosong: satu baris, ketuk untuk memilih
+                  if (available) {
+                    return (
+                      <button
+                        key={booth.id}
+                        type="button"
+                        onClick={() => handleSelectBooth(booth)}
+                        className={`flex w-full items-center gap-3 rounded-2xl border-2 p-3 text-left transition ${tone}`}
+                      >
+                        {badge}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-emerald-700">{isSelected ? "✓ Bilik dipilih" : "Kosong"}</p>
+                          <p className="text-xs text-emerald-600/80">
+                            {isSelected
+                              ? "Sekarang ketuk siswa di antrean"
+                              : selectedStudent
+                              ? `Ketuk untuk arahkan ${selectedStudent.nama}`
+                              : "Siap dipakai"}
                           </p>
-                        ) : booth.student ? (
-                          <>
-                            <p className="truncate text-sm font-semibold text-slate-700" title={booth.student.nama}>
-                              {booth.student.nama}
-                            </p>
-                            <p className="truncate text-[11px] text-slate-400">{booth.student.kelas}</p>
-                          </>
-                        ) : (
-                          <p className="text-sm text-slate-400">—</p>
-                        )}
+                        </div>
+                      </button>
+                    );
+                  }
+
+                  // Bilik terisi: nama lengkap di atas, status + tombol keluarkan di bawah
+                  return (
+                    <div key={booth.id} className={`overflow-hidden rounded-2xl border-2 ${tone}`}>
+                      <div className="flex items-center gap-3 p-3">
+                        {badge}
+                        <div className="min-w-0 flex-1">
+                          <p className="break-words text-sm font-bold leading-snug text-slate-800">
+                            {booth.student?.nama || "—"}
+                          </p>
+                          {booth.student?.kelas && (
+                            <p className="mt-0.5 text-xs text-slate-500">{booth.student.kelas}</p>
+                          )}
+                        </div>
                       </div>
 
-                      <span
-                        className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                          available
-                            ? "bg-emerald-100 text-emerald-700"
-                            : booth.status === "assigned"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-violet-100 text-violet-700"
+                      <div
+                        className={`flex items-center justify-between gap-2 border-t px-3 py-2 ${
+                          booth.status === "assigned" ? "border-amber-200 bg-amber-100/50" : "border-violet-200 bg-violet-100/40"
                         }`}
                       >
-                        {!available && (
+                        <span
+                          className={`flex items-center gap-1.5 text-xs font-semibold ${
+                            booth.status === "assigned" ? "text-amber-700" : "text-violet-700"
+                          }`}
+                        >
                           <span
-                            className={`h-1.5 w-1.5 animate-pulse rounded-full ${
+                            className={`h-2 w-2 animate-pulse rounded-full ${
                               booth.status === "assigned" ? "bg-amber-500" : "bg-violet-500"
                             }`}
                           />
-                        )}
-                        {available ? "Tersedia" : booth.status === "assigned" ? "Menunggu" : "Memilih"}
-                      </span>
+                          {booth.status === "assigned" ? "Menunggu siswa masuk" : "Sedang memilih"}
+                        </span>
 
-                      {!available && booth.student && (
-                        <button
-                          type="button"
-                          onClick={() => handleCancelBooth(booth)}
-                          title="Salah panggil? Keluarkan siswa dan kembalikan ke antrean"
-                          aria-label={`Keluarkan ${booth.student.nama} dari ${boothLabel(booth.id)}`}
-                          className={`shrink-0 rounded-lg px-2 py-1 text-[11px] font-bold transition ${
-                            confirming
-                              ? "bg-rose-600 text-white hover:bg-rose-700"
-                              : "text-rose-500 ring-1 ring-rose-200 hover:bg-rose-50"
-                          }`}
-                        >
-                          {confirming ? (booth.status === "active" ? "Yakin? Sedang memilih" : "Yakin?") : "✕ Keluarkan"}
-                        </button>
-                      )}
-                    </Row>
+                        {booth.student && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancelBooth(booth)}
+                            title="Salah panggil? Keluarkan siswa dan kembalikan ke antrean"
+                            aria-label={`Keluarkan ${booth.student.nama} dari ${boothLabel(booth.id)}`}
+                            className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                              confirming
+                                ? "bg-rose-600 text-white hover:bg-rose-700"
+                                : "bg-white text-rose-500 ring-1 ring-rose-200 hover:bg-rose-50"
+                            }`}
+                          >
+                            {confirming ? "Ketuk lagi untuk keluarkan" : "✕ Keluarkan"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
