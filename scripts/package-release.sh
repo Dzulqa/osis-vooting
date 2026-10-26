@@ -11,7 +11,10 @@ trap 'rm -rf "$STAGE"' EXIT
 cp -r .next/standalone/. "$STAGE/"
 mkdir -p "$STAGE/.next"
 cp -r .next/static "$STAGE/.next/static"
-cp -r public "$STAGE/public"
+# Gabungkan ke public/ (bukan "cp -r public $STAGE/public": bila standalone sudah punya
+# folder public dari file tracing, isinya akan bersarang jadi public/public/)
+mkdir -p "$STAGE/public"
+cp -R public/. "$STAGE/public/"
 cp ecosystem.config.js "$STAGE/"
 cp scripts/deploy-remote.sh "$STAGE/deploy-remote.sh"
 
@@ -30,6 +33,15 @@ rm -rf "$STAGE/node_modules/sharp" "$STAGE/node_modules/@img"
   rm -f *wasm-base64* *.wasm *cockroachdb* *postgresql* *sqlite* *sqlserver* query_compiler_* *.d.ts *.d.mts *.map)
 (cd "$STAGE/node_modules/.prisma/client" &&
   rm -f *darwin* *windows* query_engine_bg.* wasm* edge.js)
+
+# Every file in public/ must be served from the release root (e.g. /logo/alamanah.png)
+if [ -d "$STAGE/public/public" ]; then
+  echo "public/ got nested at public/public in the release" >&2
+  exit 1
+fi
+(cd public && find . -type f) | while read -r f; do
+  [ -f "$STAGE/public/$f" ] || { echo "Missing from release: public/${f#./}" >&2; exit 1; }
+done
 
 # The engine for the VPS must be present
 if ! ls "$STAGE"/node_modules/.prisma/client/libquery_engine-*.so.node >/dev/null 2>&1; then
