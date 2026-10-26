@@ -10,7 +10,6 @@ import {
 } from "@/lib/votingStorage";
 import { BallotBox, Bunting, Confetti, FestiveBackdrop, Reveal } from "@/components/Festive";
 import CandidatePhoto from "@/components/CandidatePhoto";
-import Footer from "@/components/Footer";
 import PaslonShowcase from "@/components/PaslonShowcase";
 import RichText from "@/components/RichText";
 
@@ -466,8 +465,6 @@ export default function LandingPage() {
         />
       )}
 
-      {/* Hak cipta hanya ditampilkan di landing page */}
-      <Footer />
     </main>
   );
 }

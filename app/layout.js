@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono, Fredoka, Plus_Jakarta_Sans } from "next/font/google";
 import SyncProvider from "@/components/SyncProvider";
+import Footer from "@/components/Footer";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,6 +38,7 @@ export default function RootLayout({ children }) {
       <body suppressHydrationWarning className="min-h-full flex flex-col">
         <SyncProvider />
         {children}
+        <Footer />
       </body>
     </html>
   );
