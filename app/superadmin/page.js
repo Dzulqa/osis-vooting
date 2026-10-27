@@ -9,6 +9,7 @@ import SearchSelect from "@/components/SearchSelect";
 import CandidatePhoto from "@/components/CandidatePhoto";
 import PhotoUpload, { PhotoReplaceButton } from "@/components/PhotoUpload";
 import VisiField from "@/components/VisiField";
+import ListField, { toPoints } from "@/components/ListField";
 import { ConfirmModal, useConfirm } from "@/components/Modal";
 import useSinarData from "@/lib/useSinarData";
 import { DashboardHero, DashboardShell, StatTile } from "@/components/Dashboard";
@@ -458,14 +459,6 @@ function SuperadminPageContent() {
       return;
     }
 
-    const parsedMisi = paslonForm.misi
-      ? paslonForm.misi.split("\n").filter((s) => s.trim())
-      : [];
-
-    const parsedProgr = paslonForm.programKerja
-      ? paslonForm.programKerja.split("\n").filter((s) => s.trim())
-      : [];
-
     addCandidate({
       nomor: paslonForm.nomor,
       ketua: ketua.nama,
@@ -477,8 +470,8 @@ function SuperadminPageContent() {
       slogan: paslonForm.slogan,
       foto: paslonForm.foto,
       visi: paslonForm.visi,
-      misi: parsedMisi,
-      programKerja: parsedProgr,
+      misi: toPoints(paslonForm.misi),
+      programKerja: toPoints(paslonForm.programKerja),
     });
 
     setPaslonForm({
@@ -498,9 +491,13 @@ function SuperadminPageContent() {
   function handleSaveVisi() {
     if (!visiDraft) return;
     const cand = candidates.find((c) => c.id === visiDraft.id);
-    updateCandidate(visiDraft.id, { visi: visiDraft.text.trim() });
+    updateCandidate(visiDraft.id, {
+      visi: visiDraft.text.trim(),
+      misi: toPoints(visiDraft.misi),
+      programKerja: toPoints(visiDraft.programKerja),
+    });
     setVisiDraft(null);
-    toast(`📝 Visi Paslon ${cand?.nomor ?? ""} berhasil diperbarui.`);
+    toast(`📝 Visi, misi, dan program kerja Paslon ${cand?.nomor ?? ""} berhasil diperbarui.`);
   }
 
   function handleReplacePaslonPhoto(cand, url) {
@@ -1400,6 +1397,28 @@ function SuperadminPageContent() {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Misi Paslon
+                  </label>
+                  <ListField
+                    value={paslonForm.misi}
+                    onChange={(misi) => setPaslonForm((f) => ({ ...f, misi }))}
+                    placeholder={"Meningkatkan kegiatan ekstrakurikuler\nMembangun komunikasi OSIS dan siswa\nMengadakan lomba antar kelas"}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Program Kerja
+                  </label>
+                  <ListField
+                    value={paslonForm.programKerja}
+                    onChange={(programKerja) => setPaslonForm((f) => ({ ...f, programKerja }))}
+                    placeholder={"Turnamen olahraga tiap semester\nKotak aspirasi siswa\nBakti sosial bulanan"}
+                  />
+                </div>
+
                 <button
                   type="submit"
                   disabled={isPhotoUploading}
@@ -1442,12 +1461,17 @@ function SuperadminPageContent() {
                       <button
                         type="button"
                         onClick={() =>
-                          setVisiDraft(visiDraft?.id === cand.id ? null : { id: cand.id, text: cand.visi || "" })
+                          setVisiDraft(visiDraft?.id === cand.id ? null : {
+                                id: cand.id,
+                                text: cand.visi || "",
+                                misi: toPoints(cand.misi).join("\n"),
+                                programKerja: toPoints(cand.programKerja).join("\n"),
+                              })
                         }
                         aria-expanded={visiDraft?.id === cand.id}
                         className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-violet-700 ring-1 ring-violet-200 transition hover:bg-violet-50"
                       >
-                        ✏️ Edit visi
+                        ✏️ Edit visi, misi & program
                       </button>
                       <PhotoReplaceButton
                         onUploaded={(url) => handleReplacePaslonPhoto(cand, url)}
@@ -1471,6 +1495,18 @@ function SuperadminPageContent() {
                         rows={9}
                         autoFocus
                       />
+                      <p className="mb-2 mt-4 text-xs font-bold text-slate-700">Misi Paslon {cand.nomor}</p>
+                      <ListField
+                        value={visiDraft.misi}
+                        onChange={(misi) => setVisiDraft((d) => ({ ...d, misi }))}
+                        placeholder="Satu misi per baris"
+                      />
+                      <p className="mb-2 mt-4 text-xs font-bold text-slate-700">Program Kerja Paslon {cand.nomor}</p>
+                      <ListField
+                        value={visiDraft.programKerja}
+                        onChange={(programKerja) => setVisiDraft((d) => ({ ...d, programKerja }))}
+                        placeholder="Satu program kerja per baris"
+                      />
                       <div className="mt-3 flex justify-end gap-2">
                         <button
                           type="button"
@@ -1484,7 +1520,7 @@ function SuperadminPageContent() {
                           onClick={handleSaveVisi}
                           className="rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-violet-700"
                         >
-                          Simpan visi
+                          Simpan
                         </button>
                       </div>
                     </div>
