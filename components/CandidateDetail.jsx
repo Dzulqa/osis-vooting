@@ -1,6 +1,10 @@
 import RichText from "@/components/RichText";
+import { toPoints } from "@/components/ListField";
 
 export default function CandidateDetail({ candidate, onClose }) {
+  const misi = toPoints(candidate.misi);
+  const programKerja = toPoints(candidate.programKerja);
+
   return (
     <div className="flex h-full min-h-0 flex-col justify-between overflow-hidden rounded-3xl border border-violet-100/90 bg-white p-5 sm:p-6 shadow-lg shadow-slate-200/50">
 
@@ -53,8 +57,8 @@ export default function CandidateDetail({ candidate, onClose }) {
             </h3>
 
             <ul className="mt-1.5 space-y-1 text-xs sm:text-sm text-slate-600">
-              {Array.isArray(candidate.misi) ? (
-                candidate.misi.map((m, idx) => (
+              {misi.length > 0 ? (
+                misi.map((m, idx) => (
                   <li key={idx} className="flex items-start gap-2">
                     <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-700">
                       {idx + 1}
@@ -63,7 +67,7 @@ export default function CandidateDetail({ candidate, onClose }) {
                   </li>
                 ))
               ) : (
-                <p className="mt-1 text-xs sm:text-sm leading-relaxed text-slate-600">{candidate.misi}</p>
+                <li className="italic text-slate-400">Misi belum diisi.</li>
               )}
             </ul>
           </div>
@@ -75,16 +79,17 @@ export default function CandidateDetail({ candidate, onClose }) {
             </h3>
 
             <ul className="mt-1.5 space-y-1.5 text-xs sm:text-sm text-slate-600">
-              {candidate.programKerja.map((program, index) => (
+              {programKerja.length === 0 && <li className="italic text-slate-400">Program kerja belum diisi.</li>}
+              {programKerja.map((program, index) => (
                 <li
                   key={index}
-                  className="flex items-center gap-2"
+                  className="flex items-start gap-2"
                 >
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[11px] font-bold text-violet-700">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[11px] font-bold text-violet-700">
                     {index + 1}
                   </span>
 
-                  <span className="leading-tight">
+                  <span className="leading-snug">
                     {program}
                   </span>
                 </li>
