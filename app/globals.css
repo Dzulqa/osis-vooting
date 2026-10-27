@@ -553,6 +553,62 @@ body {
   transform: rotateY(180deg);
 }
 
+/* ========================================
+   DEBAT FX — timer debat di layar papan
+   ======================================== */
+
+@keyframes fxEqualizer {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+@keyframes fxHeartbeat {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.07); }
+  30% { transform: scale(0.99); }
+  45% { transform: scale(1.04); }
+}
+
+@keyframes fxStamp {
+  0% { transform: scale(3) rotate(-18deg); opacity: 0; }
+  55% { transform: scale(0.92) rotate(-6deg); opacity: 1; }
+  75% { transform: scale(1.06) rotate(-8deg); }
+  100% { transform: scale(1) rotate(-7deg); opacity: 1; }
+}
+
+@keyframes fxCountIn {
+  0% { transform: scale(2.6); opacity: 0; }
+  25% { transform: scale(1); opacity: 1; }
+  80% { transform: scale(0.9); opacity: 1; }
+  100% { transform: scale(0.6); opacity: 0; }
+}
+
+@keyframes fxAlarm {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+.fx-equalizer {
+  transform-origin: bottom;
+  animation: fxEqualizer var(--dur, 0.9s) ease-in-out var(--delay, 0s) infinite;
+}
+
+.fx-heartbeat {
+  animation: fxHeartbeat 1s ease-in-out infinite;
+}
+
+.fx-stamp {
+  animation: fxStamp 700ms cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+}
+
+.fx-count-in {
+  animation: fxCountIn 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.fx-alarm {
+  animation: fxAlarm 1s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .flip-inner {
     transition: none;
@@ -579,7 +635,10 @@ body {
   .fx-sparkle,
   .fx-wave,
   .fx-digit,
-  .fx-shake {
+  .fx-shake,
+  .fx-equalizer,
+  .fx-heartbeat,
+  .fx-alarm {
     animation: none !important;
   }
 

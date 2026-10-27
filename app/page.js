@@ -388,7 +388,7 @@ export default function LandingPage() {
                           <div>
                             <p className={`text-xs font-bold uppercase tracking-[0.18em] ${accent.label}`}>Visi paslon</p>
                             <p className="text-sm font-semibold text-slate-600">
-                              {candidate.ketua.split(" ")[0]} &amp; {candidate.wakil.split(" ")[0]}
+                              {(candidate.ketua || "").split(" ")[0]} &amp; {(candidate.wakil || "").split(" ")[0]}
                             </p>
                           </div>
                         </div>

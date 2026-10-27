@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import CandidatePhoto from "@/components/CandidatePhoto";
 import RichText from "@/components/RichText";
 import { Confetti } from "@/components/Festive";
+import DebateStage from "@/components/DebateStage";
 
 // Tampilan presentasi paslon untuk layar besar (papan / proyektor)
 const AUTOPLAY_MS = 15000;
@@ -66,6 +67,7 @@ export default function PaslonShowcase({ candidates, startIndex = 0, onClose, on
   const [index, setIndex] = useState(startIndex);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAutoplay, setIsAutoplay] = useState(false);
+  const [isDebate, setIsDebate] = useState(false);
 
   const total = candidates.length;
   const candidate = candidates[index];
@@ -180,6 +182,7 @@ export default function PaslonShowcase({ candidates, startIndex = 0, onClose, on
   // Keyboard: ← → ganti paslon, F layar penuh, Esc tutup
   useEffect(() => {
     function handleKey(e) {
+      if (isDebate) return; // mode debat punya pintasan keyboard sendiri
       if (e.key === "ArrowRight") go(1);
       else if (e.key === "ArrowLeft") go(-1);
       else if (e.key === "f" || e.key === "F") toggleFullscreen();
@@ -198,14 +201,14 @@ export default function PaslonShowcase({ candidates, startIndex = 0, onClose, on
       window.removeEventListener("keydown", handleKey);
       document.removeEventListener("fullscreenchange", handleFullscreen);
     };
-  }, [go, toggleFullscreen, close]);
+  }, [go, toggleFullscreen, close, isDebate]);
 
   // Putar otomatis untuk papan informasi
   useEffect(() => {
-    if (!isAutoplay || total < 2) return;
+    if (!isAutoplay || isDebate || total < 2) return;
     const timer = setTimeout(() => go(1), AUTOPLAY_MS);
     return () => clearTimeout(timer);
-  }, [isAutoplay, index, total, go]);
+  }, [isAutoplay, isDebate, index, total, go]);
 
   if (!candidate) return null;
 
@@ -244,6 +247,13 @@ export default function PaslonShowcase({ candidates, startIndex = 0, onClose, on
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsDebate(true)}
+            className="rounded-full bg-ink px-4 py-2 text-xs font-bold text-white shadow-md transition hover:scale-105"
+          >
+            🎤 Mode debat
+          </button>
           {total > 1 && (
             <button
               type="button"
@@ -450,6 +460,16 @@ export default function PaslonShowcase({ candidates, startIndex = 0, onClose, on
             </span>
           )}
         </footer>
+      )}
+
+      {isDebate && (
+        <DebateStage
+          candidates={candidates}
+          startIndex={index}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={toggleFullscreen}
+          onClose={() => setIsDebate(false)}
+        />
       )}
     </div>
   );
