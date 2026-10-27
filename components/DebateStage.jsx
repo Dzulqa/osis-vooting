@@ -9,8 +9,8 @@ import { Bunting, Confetti, ConfettiBurst } from "@/components/Festive";
 // Dioperasikan moderator dari laptop yang tersambung ke papan (tidak disinkronkan ke server).
 
 const SEGMENTS = [
-  { id: "visi", label: "Pemaparan visi & misi", icon: "📣", seconds: 180 },
-  { id: "jawab", label: "Menjawab pertanyaan", icon: "💬", seconds: 120 },
+  { id: "visi", label: "Pemaparan visi & misi", icon: "📣", seconds: 60 },
+  { id: "jawab", label: "Menjawab pertanyaan", icon: "💬", seconds: 60 },
   { id: "tanggap", label: "Tanggapan", icon: "⚡", seconds: 60 },
   { id: "penutup", label: "Pernyataan penutup", icon: "🌟", seconds: 60 },
 ];
@@ -342,9 +342,6 @@ export default function DebateStage({ candidates, startIndex = 0, onClose, onTog
             >
               <CandidatePhoto src={speaker.foto} nomor={speaker.nomor} ketua={speaker.ketua} wakil={speaker.wakil} />
             </div>
-            <span className="absolute -left-[1.5vw] top-[2vh] flex h-[clamp(3.5rem,min(6vw,11vh),7rem)] w-[clamp(3.5rem,min(6vw,11vh),7rem)] -rotate-12 items-center justify-center rounded-[1.75rem] bg-sun font-display text-[clamp(1.75rem,min(3.2vw,6vh),4rem)] font-bold text-ink shadow-xl ring-4 ring-white">
-              {speaker.nomor}
-            </span>
 
             {/* Status bicara */}
             <div className="absolute -bottom-[2.5vh] left-1/2 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-white px-5 py-2 text-[clamp(0.8rem,1vw,1.15rem)] font-black text-ink shadow-xl">
@@ -372,6 +369,9 @@ export default function DebateStage({ candidates, startIndex = 0, onClose, onTog
           </div>
 
           <div className="mt-[5vh] text-center">
+            <span className="mb-[1vh] inline-flex items-center gap-[0.6vw] rounded-full bg-sun px-[1.4vw] py-[0.5vh] font-display text-[clamp(0.9rem,min(1.5vw,2.8vh),1.8rem)] font-bold uppercase tracking-wider text-ink shadow-lg">
+              Paslon <span className="text-[1.25em] leading-none">{speaker.nomor}</span>
+            </span>
             <p className="font-display text-[clamp(1.4rem,min(2.6vw,4.6vh),3.4rem)] font-bold leading-tight">
               {speaker.ketua} <span className="text-sun">&amp;</span> {speaker.wakil}
             </p>
