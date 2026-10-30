@@ -81,10 +81,12 @@ export default function ResultsPage() {
   }, [summaryData]);
 
   const totalStudents = students.length;
+  // Pengunjung tanpa login tidak menerima DPT & daftar pemilih: tiap suara = satu siswa yang sudah memilih
+  const voterCount = Math.max(votedCount, summaryData.totalVotes);
   const participationPercentage =
     totalStudents > 0
-      ? ((votedCount / totalStudents) * 100).toFixed(1)
-      : "0.0";
+      ? ((voterCount / totalStudents) * 100).toFixed(1)
+      : null;
 
   // Filter candidate stats based on tab selection
   const displayedStats = useMemo(() => {
@@ -175,8 +177,8 @@ export default function ResultsPage() {
                 color="sun"
                 delay={80}
               />
-              <StatTile icon="👥" label="Sudah memilih" value={votedCount} unit={`/ ${totalStudents} siswa`} note="Terverifikasi di pendaftaran" color="mint" delay={160} />
-              <StatTile icon="📊" label="Tingkat partisipasi" value={`${participationPercentage}%`} note="Dari total daftar pemilih" color="coral" delay={240} />
+              <StatTile icon="👥" label="Sudah memilih" value={voterCount} unit={totalStudents > 0 ? `/ ${totalStudents} siswa` : "siswa"} note="Terverifikasi di pendaftaran" color="mint" delay={160} />
+              <StatTile icon="📊" label="Tingkat partisipasi" value={participationPercentage ? `${participationPercentage}%` : "—"} note={participationPercentage ? "Dari total daftar pemilih" : "Login untuk melihat DPT"} color="coral" delay={240} />
             </div>
 
             {/* TAB FILTER PASLON */}
