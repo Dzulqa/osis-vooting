@@ -1,0 +1,91 @@
+name: Build image and deploy fe-suara
+
+# Builds on GitHub, pushes to GHCR, the VPS only pulls the finished image.
+# The old deploy.yml (pm2) stays until DNS cutover, then delete it.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-fe-suara-docker
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Refuses migrations that delete data without an explicit "-- allow-destructive:" line
+      - name: Check migrations
+        run: bash scripts/check-migrations.sh
+
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: production
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+            cd /opt/stacks/suara
+            docker compose pull suara-app
+
+            # Full DB backup before touching the schema (kept: last 10), as the old deploy did
+            mkdir -p backups
+            B="backups/before-${{ github.sha }}-$(date +%Y%m%d-%H%M%S).sql.gz"
+            docker compose exec -T suara-db sh -c \
+              'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump --single-transaction --routines --triggers --no-tablespaces -uroot "$MYSQL_DATABASE"' \
+              | gzip > "$B.partial" && mv "$B.partial" "$B" && chmod 600 "$B"
+            ls -1t backups/*.sql.gz | tail -n +11 | xargs -r rm -f
+
+            # Apply only pending migrations (never reset or reseed)
+            docker compose run --rm --no-deps suara-app \
+              node /opt/prisma-cli/node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma
+
+            docker compose up -d suara-app
+
+            # Wait for the container healthcheck
+            for i in $(seq 1 20); do
+              S="$(docker inspect -f '{{.State.Health.Status}}' "$(docker compose ps -q suara-app)" 2>/dev/null || true)"
+              [ "$S" = "healthy" ] && { echo "Healthy"; docker image prune -f; exit 0; }
+              sleep 3
+            done
+            echo "suara-app did not become healthy" >&2
+            docker compose logs --tail=40 suara-app >&2
+            exit 1

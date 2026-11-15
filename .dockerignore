@@ -1,0 +1,16 @@
+.git
+.github
+.codegraph
+.next
+node_modules
+.uploads
+docs
+.env
+.env.*
+!.env.example
+
+# stray local files that must never enter an image
+bamzky707@gmail.com*
+deploy@*
+gcm-diagnose.log
+*.log
